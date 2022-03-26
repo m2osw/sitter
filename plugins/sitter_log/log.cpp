@@ -1,0 +1,272 @@
+// Copyright (c) 2011-2022  Made to Order Software Corp.  All Rights Reserved.
+//
+// https://snapwebsites.org/project/sitter
+// contact@m2osw.com
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// Snap Websites Server -- snap watchdog library
+
+
+// self
+//
+#include    "./log.h"
+
+
+
+// sitter
+//
+#include    <sitter/exception.h>
+
+
+// snaplogger
+//
+#include    <snaplogger/message.h>
+
+
+// snapdev
+//
+#include    <snapdev/enumerate.h>
+#include    <snapdev/glob_to_list.h>
+#include    <snapdev/mounts.h>
+#include    <snapdev/not_reached.h>
+#include    <snapdev/not_used.h>
+
+
+// C
+//
+#include    <sys/stat.h>
+
+
+// last include
+//
+#include    <snapdev/poison.h>
+
+
+
+namespace sitter
+{
+namespace log
+{
+
+CPPTHREAD_PLUGIN_START(log, 1, 0)
+    , ::cppthread::plugin_description(
+            "Check log files existance, size, ownership, and permissions.")
+    , ::cppthread::plugin_dependency("server")
+    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
+    , ::cppthread::plugin_categorization_tag("log")
+CPPTHREAD_PLUGIN_END(log)
+
+
+
+
+/** \brief Initialize log.
+ *
+ * This function terminates the initialization of the log plugin
+ * by registering for different events.
+ *
+ * \param[in] snap  The child handling this request.
+ */
+void log::bootstrap(void * s)
+{
+    f_server = static_cast<server *>(s);
+
+    SNAP_LISTEN(log, "server", server, process_watch, boost::placeholders::_1);
+}
+
+
+/** \brief Process this watchdog data.
+ *
+ * This function runs this watchdog.
+ *
+ * \param[in] doc  The document.
+ */
+void log::on_process_watch(as2js::JSON::JSONValueRef & json)
+{
+    SNAP_LOG_DEBUG
+        << "log::on_process_watch(): processing"
+        << SNAP_LOG_SEND;
+
+    definition::vector_t log_defs(load());
+
+    as2js::JSON::JSONValueRef logs(json["logs"]);
+
+    // check each log
+    //
+    size_t const max_logs(log_defs.size());
+    for(size_t idx(0); idx < max_logs; ++idx)
+    {
+        definition const & def(log_defs[idx]);
+        std::string const & path(def.get_path());
+        advgetopt::string_list_t const & patterns(def.get_patterns());
+        f_found = false;
+        for(auto const & p : patterns)
+        {
+            snapdev::glob_to_list<std::list<std::string>> log_filenames;
+            log_filenames.read_path<
+                  snapdev::glob_to_list_flag_t::GLOB_FLAG_NO_ESCAPE
+                , snapdev::glob_to_list_flag_t::GLOB_FLAG_IGNORE_ERRORS>(path + "/" + p);
+            snapdev::enumerate(
+                  log_filenames
+                , std::bind(&log::check_log, this, std::placeholders::_1, std::placeholders::_2, def, e));
+        }
+        if(!f_found)
+        {
+            QDomElement log_tag(doc.createElement("log"));
+            e.appendChild(log_tag);
+
+            QString const err_msg(QString("no logs found for %1 which says it is mandatory to have at least one log file")
+                                                .arg(l.get_name()));
+            log_tag.setAttribute("error", err_msg);
+
+            f_snap->append_error(doc
+                               , "log"
+                               , err_msg
+                               , 85); // priority
+        }
+    }
+}
+
+
+void log::check_log(int index, std::string filename, definition const & def, as2js::JSON::JSONValueRef & json)
+{
+    snapdev::NOT_USED(index);
+
+    struct stat st;
+    if(stat(filename.c_str(), &st) == 0)
+    {
+        // found at least one log under that directory with that pattern
+        //
+        f_found = true;
+
+        as2js::JSON::JSONValueRef l(json["log"]);
+
+        l["name"] = def.get_name();
+        l["filename"] = filename;
+        l["size"] = st.st_size;
+        l["mode"] = st.st_mode;
+        l["uid"] = st.st_uid;
+        l["gid"] = st.st_gid;
+        l["mtime"] = st.st_mtime; // we could look into showing the timespec instead?
+
+        if(st.st_size > def.get_max_size())
+        {
+            // file is too big, generate an error about it!
+            //
+            std::string const err_msg(
+                      "size of log file  "
+                    + l.get_name()
+                    + " ("
+                    + filename
+                    + ") is "
+                    + std::to_string(st.st_size)
+                    + ", which is more than the maximum size of "
+                    + std::to_string(def.get_max_size()));
+            log["error"] = err_msg;
+
+            f_server->append_error(
+                  l
+                , "log"
+                , err_msg
+                , st.st_size > def.get_max_size() * 2 ? 73 : 58); // priority
+        }
+
+        uid_t const uid(def.get_uid());
+        if(uid != static_cast<uid_t>(-1)
+        && uid != st.st_uid)
+        {
+            // file ownership mismatch
+            //
+            std::string const err_msg(
+                      "log file owner mismatched for "
+                    + def.get_name()
+                    + " ("
+                    + filename
+                    + "), found "
+                    + std::to_string(st.st_uid)
+                    + " expected "
+                    + std::to_string(uid));
+            l["error"] = err_msg;
+
+            f_server->append_error(
+                  l
+                , "log"
+                , err_msg
+                , 63); // priority
+        }
+
+        gid_t const gid(def.get_gid());
+        if(gid != static_cast<gid_t>(-1)
+        && gid != st.st_gid)
+        {
+            // file ownership mismatch
+            //
+            std::string const err_msg(
+                      "log file group mismatched for "
+                    + def.get_name()
+                    + " ("
+                    + filename
+                    + "), found "
+                    + std::to_string(st.st_gid)
+                    + " expected "
+                    + std::to_string(gid))
+            l["error"] = err_msg;
+
+            f_server->append_error(
+                  l
+                , "log"
+                , err_msg
+                , 59); // priority
+        }
+
+        mode_t const mode(def.get_mode());
+        mode_t const mode_mask(def.get_mode_mask());
+        if(mode != 0
+        && (st.st_mode & mode_mask) != mode)
+        {
+            // file ownership mismatch
+            //
+            std::string const err_msg(
+                      "log file mode mismatched "
+                    + def.get_name()
+                    + " ("
+                    + filename
+                    + "), found "
+                    + std::to_string(st.st_mode)    // TODO: get octal
+                    + " expected "
+                    + std::to_string(mode))    // TODO: get octal
+            log_tag.setAttribute("error", err_msg);
+
+            f_server->append_error(
+                  l
+                , "log"
+                , err_msg
+                , 64); // priority
+        }
+
+        // TODO: do the searches if we have some regex defined
+    }
+    else
+    {
+        // file does not exist anymore or we have a permission problem?
+    }
+}
+
+
+
+
+
+
+} // namespace log
+} // namespace sitter
+// vim: ts=4 sw=4 et
