@@ -199,7 +199,7 @@ advgetopt::option const g_command_line_options[] =
     advgetopt::define_option(
           advgetopt::Name("statistics-frequency")
         , advgetopt::Flags(advgetopt::all_flags<
-            , advgetopt::GETOPT_FLAG_REQUIRED>())
+              advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("60")
         , advgetopt::Help("how often the sitter runs all the plugins.")
     ),
@@ -1672,7 +1672,7 @@ bool server::output_process(
     , std::string const & process_name
     , int priority)
 {
-    as2js::JSON::JSONValueRef & process(json["process"][-1]);
+    as2js::JSON::JSONValueRef process(json["process"][-1]);
     process["name"] = process_name;
 
     if(info == nullptr)
@@ -1694,15 +1694,15 @@ bool server::output_process(
 
     // got it! (well, one of them at least)
     //
-    name["cmdline"] = info->get_command();
-    name["pcpu"] = info->get_cpu_percent();
-    name["total_size"] = info->get_total_size();
-    name["resident"] = info->get_rss_size();
+    process["cmdline"] = info->get_command();
+    process["pcpu"] = info->get_cpu_percent();
+    process["total_size"] = info->get_total_size();
+    process["resident"] = info->get_rss_size();
 
     int tty_major(0);
     int tty_minor(0);
     info->get_tty(tty_major, tty_minor);
-    name["tty"] = std::to_string(tty_major) + ',' + std::to_string(tty_minor);
+    process["tty"] = std::to_string(tty_major) + ',' + std::to_string(tty_minor);
 
     unsigned long long utime(0);
     unsigned long long stime(0);
@@ -1710,10 +1710,10 @@ bool server::output_process(
     unsigned long long cstime(0);
     info->get_times(utime, stime, cutime, cstime);
 
-    name["utime"] = std::to_string(utime);
-    name["stime"] = std::to_string(stime);
-    name["cutime"] = std::to_string(cutime);
-    name["cstime"] = std::to_string(cstime);
+    process["utime"] = std::to_string(utime);
+    process["stime"] = std::to_string(stime);
+    process["cutime"] = std::to_string(cutime);
+    process["cstime"] = std::to_string(cstime);
 
     return true;
 }

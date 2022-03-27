@@ -112,7 +112,7 @@ public:
     std::string         get_cache_path(std::string const & filename);
     std::string         get_server_parameter(std::string const & name) const;
 
-    PLUGIN_SIGNAL_WITH_MODE(process_watch, (as2js::JSON & json), (json), NEITHER);
+    PLUGIN_SIGNAL_WITH_MODE(process_watch, (as2js::JSON::JSONValueRef & json), (json), NEITHER);
 
     // connection_with_send_message overloads
     //

@@ -13,7 +13,7 @@ output="watchdog_watchscripts_output"
 output_default="/var/lib/snapwebsites/snapwatchdog/script-files"
 path="watchdog_watchscripts_path"
 path_default="/usr/share/snapwebsites/snapwatchdog/scripts"
-watch_script_starter="watch_script_starter"
-watch_script_starter_default="/usr/sbin/watch_script_starter"
+starter="watch_script_starter"
+starter_default="/usr/sbin/watch_script_starter"
 
 # vim: syntax=dosini

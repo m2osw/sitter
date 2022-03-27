@@ -48,6 +48,7 @@ public:
 
 private:
     void                load_packages();
+    void                load_package(int index, std::string package_filename);
     void                load_json(std::string package_filename);
 };
 

@@ -28,6 +28,7 @@
 
 // snapdev
 //
+#include    <snapdev/gethostname.h>
 #include    <snapdev/mounts.h>
 #include    <snapdev/not_reached.h>
 #include    <snapdev/not_used.h>
@@ -294,7 +295,7 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
                         // we test now to ignore further partitions
                         //
                         std::string const disk_ignore(plugins()->get_server<sitter::server>()->get_server_parameter(g_name_disk_ignore));
-                        advgetopt::string_list_t const disk_ignore_patterns;
+                        advgetopt::string_list_t disk_ignore_patterns;
                         advgetopt::split_string(disk_ignore, disk_ignore_patterns, { ":" });
                         auto it2(std::find_if(
                                   disk_ignore_patterns.begin()
@@ -317,7 +318,7 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
                                                     : (usage >= 0.95
                                                         ? 80
                                                         : 55)); // [0.9, 0.95)
-                            f_snap->append_error(
+                            plugins()->get_server<sitter::server>()->append_error(
                                   e
                                 , "disk"
                                 , "partition \""

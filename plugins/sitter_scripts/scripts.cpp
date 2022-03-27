@@ -40,6 +40,7 @@
 // cppprocess
 //
 #include    <cppprocess/io_capture_pipe.h>
+#include    <cppprocess/process.h>
 
 
 // advgetopt
@@ -58,7 +59,7 @@
 #include    <snapdev/file_contents.h>
 #include    <snapdev/glob_to_list.h>
 #include    <snapdev/not_used.h>
-#include    <snapdev/not_reached.h>
+#include    <snapdev/trim_string.h>
 
 
 // libaddr lib
@@ -96,41 +97,9 @@ SERVERPLUGINS_END(scripts)
 
 
 
-//char const * get_name(name_t name)
-//{
-//    switch(name)
-//    {
-//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_DEFAULT_LOG_SUBFOLDER:
-//        return "snapwatchdog-output";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_LOG_SUBFOLDER:
-//        return "log_subfolder";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT:
-//        return "watchdog_watchscripts_output";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT_DEFAULT:
-//        return "/var/lib/snapwebsites/snapwatchdog/script-files";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH:
-//        return "watchdog_watchscripts_path";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH_DEFAULT:
-//        return "/usr/share/snapwebsites/snapwatchdog/scripts";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER:
-//        return "watch_script_starter";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER_DEFAULT:
-//        return "/usr/sbin/watch_script_starter";
-//
-//    default:
-//        // invalid index
-//        throw snap_logic_error("Invalid SNAP_NAME_WATCHDOG_WATCHSCRIPTS_...");
-//
-//    }
-//    snapdev::NOT_REACHED();
-//}
+
+
+
 
 
 /** \brief Initialize scripts.
@@ -143,10 +112,10 @@ void scripts::bootstrap()
     SERVERPLUGINS_LISTEN(scripts, "server", server, process_watch, boost::placeholders::_1);
 
     sitter::server::pointer_t server(plugins()->get_server<sitter::server>());
-    f_watch_script_starter = server->get_server_parameter(g_name_scripts_watch_script_starter);
+    f_watch_script_starter = server->get_server_parameter(g_name_scripts_starter);
     if(f_watch_script_starter.empty())
     {
-        f_watch_script_starter = g_name_scripts_watch_script_starter_default;
+        f_watch_script_starter = g_name_scripts_starter_default;
     }
 
     // setup a variable that our scripts can use to save data as they
@@ -204,39 +173,23 @@ void scripts::on_process_watch(as2js::JSON::JSONValueRef & json)
         << "scripts::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    QString const scripts_path([&]()
+    std::string const scripts_path([&]()
         {
-            QString const path(f_snap->get_server_parameter(get_name(name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH)));
-            if(path.isEmpty())
+            std::string const path(plugins()->get_server<sitter::server>()->get_server_parameter(
+                                    g_name_scripts_path));
+            if(path.empty())
             {
-                return QString::fromUtf8(get_name(name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH_DEFAULT));
+                return std::string(g_name_scripts_path_default);
             }
             return path;
         }());
 
-    QDomElement parent(snap_dom::create_element(doc, "watchdog"));
-    f_watchdog = snap_dom::create_element(parent, "scripts");
-
-    // allow for failures, admins are responsible for making sure it will
-    // work as expected
-    //
-    f_output_file.reset(new QFile(f_scripts_output_log));
-    if(f_output_file != nullptr
-    && !f_output_file->open(QIODevice::Append))
-    {
-        f_output_file.reset();
-    }
-    f_error_file.reset(new QFile(f_scripts_error_log));
-    if(f_error_file != nullptr
-    && !f_error_file->open(QIODevice::Append))
-    {
-        f_error_file.reset();
-    }
+    f_scripts = json["scripts"];
 
     snapdev::glob_to_list<std::list<std::string>> script_filenames;
     script_filenames.read_path<
           snapdev::glob_to_list_flag_t::GLOB_FLAG_NO_ESCAPE
-        , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(std::string(scripts_path.toUtf8().data()) + "/*");
+        , snapdev::glob_to_list_flag_t::GLOB_FLAG_EMPTY>(scripts_path + "/*");
     snapdev::enumerate(
               script_filenames
             , std::bind(
@@ -244,11 +197,6 @@ void scripts::on_process_watch(as2js::JSON::JSONValueRef & json)
                 , this
                 , std::placeholders::_1
                 , std::placeholders::_2));
-
-    // release memory (it could be somewhat large)
-    //
-    f_output.clear();
-    f_error.clear();
 }
 
 
@@ -258,7 +206,7 @@ void scripts::process_script(int index, std::string script_filename)
 
     // skip any README file
     //
-    // (specifically, we install a file named watchdogscripts_README.md
+    // (specifically, we install a file named sitter_README.md
     // in the folder as a placeholder with documentation)
     //
     if(script_filename.find("README") != std::string::npos)
@@ -266,16 +214,7 @@ void scripts::process_script(int index, std::string script_filename)
         return;
     }
 
-    // setup the variable used while running a script
-    //
-    f_new_output_script = true;
-    f_new_error_script = true;
-    f_last_output_byte = '\n'; // whatever works in here, but I think this '\n' makes it clearer
-    f_last_error_byte = '\n';
-
-    f_output.clear();
-    f_error.clear();
-    f_script_filename = QString::fromUtf8(script_filename.c_str());
+    f_script_filename = script_filename;
     f_start_date = time(nullptr);
 
     // run the script
@@ -285,89 +224,90 @@ void scripts::process_script(int index, std::string script_filename)
     // Note: scripts that do not have the execution permission set are
     //       started with /bin/sh
     //
-    p.set_command(f_watch_script_starter.toUtf8().data());
+    p.set_command(f_watch_script_starter);
     p.add_argument(script_filename);
 
-    cppprocess::io_capture_pipe::pointer_t out(std::make_shared<cppprocess::io_capture_pipe>());
-    p.set_output_io(out);
+    cppprocess::io_capture_pipe::pointer_t output_pipe(std::make_shared<cppprocess::io_capture_pipe>());
+    p.set_output_io(output_pipe);
 
-    cppprocess::io_capture_pipe::pointer_t err(std::make_shared<cppprocess::io_capture_pipe>());
-    p.set_error_io(err);
+    cppprocess::io_capture_pipe::pointer_t error_pipe(std::make_shared<cppprocess::io_capture_pipe>());
+    p.set_error_io(error_pipe);
 
     int exit_code(p.start());
     if(exit_code == 0)
     {
         exit_code = p.wait();
     }
-    std::string const output(out->get_trimmed_output());
 
-    //p.set_output_callback(this);
+    as2js::JSON::JSONValueRef e(f_scripts["script"]);
 
-    QDomDocument doc(f_watchdog.ownerDocument());
-    QDomElement script(doc.createElement("script"));
-    f_watchdog.appendChild(script);
+    e["name"] = script_filename;
+    e["exit_code"] = exit_code;
 
-    script.setAttribute("name", QString::fromUtf8(script_filename.c_str()));
-    script.setAttribute("exit_code", exit_code);
-
-    // if we output some data and it did not end with \n then add it now
-    //
-    if(!f_new_output_script
-    && f_last_output_byte != '\n'
-    && f_output_file != nullptr)
-    {
-        f_output_file->write("\n", 1);
-        f_output += "\n";
-    }
-    if(!f_new_error_script
-    && f_last_error_byte != '\n'
-    && f_error_file != nullptr)
-    {
-        f_error_file->write("\n", 1);
-        f_error += "\n";
-    }
-
-    SNAP_LOG_TRACE
+    SNAP_LOG_DEBUG
         << "script \""
         << script_filename
         << "\" exited with "
         << exit_code
-        << ", and "
-        << f_output.length()
-        << " bytes of output and "
-        << f_error.length()
-        << " bytes of error."
+        << '.'
         << SNAP_LOG_SEND;
 
-    if(exit_code == 0
-    && !f_error.isEmpty())
-    {
-        SNAP_LOG_WARNING
-            << "we got errors but the process exit code is 0"
-            << SNAP_LOG_SEND;
-    }
+    //if(exit_code == 0
+    //&& !f_error.empty()) -- how do we know data was writte to the erro file? (with stat() + mtime?)
+    //{
+    //    SNAP_LOG_WARNING
+    //        << "we got errors but the process exit code is 0"
+    //        << SNAP_LOG_SEND;
+    //}
 
-    // if we received some output, email it to the administrator
-    // if we also had a failing script
+    std::stringstream ss;
+    ss << '\n' << index << "> " << script_filename << '\n';
+    std::string intro(ss.str());
+
+    // if we received some output or on a failing script,
+    // then email the administrator
     //
+    std::string output(output_pipe->get_output());
     if(exit_code != 0
-    && !f_output.isEmpty())
+    && !output.empty())
     {
-        QDomElement output_tag(doc.createElement("output"));
-        script.appendChild(output_tag);
-        QDomText text(doc.createTextNode(f_output));
-        output_tag.appendChild(text);
+        output = generate_header("OUTPUT") + output;
+        if(output.back() != '\n')
+        {
+            output += '\n';
+        }
+        e["output"] = output;
 
-        f_snap->append_error(doc, "scripts", f_output, 35);
+        snapdev::file_contents output_file(f_scripts_output_log);
+        output_file.contents(output);
+        output_file.write_all();
+
+        plugins()->get_server<sitter::server>()->append_error(
+                  e
+                , "scripts"
+                , output
+                , exit_code == 0 ? 35 : 65);
     }
-    if(!f_error.isEmpty())
-    {
-        QDomElement output_tag(doc.createElement("error"));
-        script.appendChild(output_tag);
-        QDomText text(doc.createTextNode(f_error));
-        output_tag.appendChild(text);
 
-        f_snap->append_error(doc, "scripts", f_error, 90);
+    std::string error(error_pipe->get_output());
+    if(!error.empty())
+    {
+        error = generate_header("ERROR") + error;
+        if(error.back() != '\n')
+        {
+            error += '\n';
+        }
+        e["error"] = error;
+
+        snapdev::file_contents error_file(f_scripts_error_log);
+        error_file.contents(error);
+        error_file.write_all();
+
+        plugins()->get_server<sitter::server>()->append_error(
+                  e
+                , "scripts"
+                , error
+                , 90);
     }
 }
 
@@ -397,7 +337,7 @@ std::string scripts::generate_header(std::string const & type)
     if(hostname.read_all())
     {
         header += "Hostname: ";
-        header += snapdev::trim_string(hostname.contents())
+        header += snapdev::trim_string(hostname.contents());
         header += "\n";
     }
 

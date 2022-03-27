@@ -77,21 +77,16 @@ private:
                             f_scripts = as2js::JSON::JSONValueRef(
                                           as2js::JSON::JSONValue::pointer_t()
                                         , as2js::String());
-    bool                    f_new_output_script = false;
-    bool                    f_new_error_script = false;
-    char                    f_last_output_byte = '\n';
-    char                    f_last_error_byte = '\n';
+
     std::string             f_watch_script_starter = std::string();
     std::string             f_log_path = std::string();
     std::string             f_log_subfolder = std::string();
+
     std::string             f_scripts_output_log = std::string();
     std::string             f_scripts_error_log = std::string();
+
     std::string             f_script_filename = std::string();
-    //std::shared_ptr<QFile>  f_output_file = std::shared_ptr<QFile>();
-    //std::shared_ptr<QFile>  f_error_file = std::shared_ptr<QFile>();
     time_t                  f_start_date = time_t();
-    std::string             f_output = std::string();
-    std::string             f_error = std::string();
     std::string             f_email = std::string();
 };
 

@@ -29,6 +29,12 @@
 #include    <sitter/exception.h>
 
 
+// advgetopt
+//
+#include    <advgetopt/conf_file.h>
+#include    <advgetopt/validator_integer.h>
+
+
 // snaplogger
 //
 #include    <snaplogger/message.h>
@@ -42,6 +48,7 @@
 
 // snapdev
 //
+#include    <snapdev/enumerate.h>
 #include    <snapdev/file_contents.h>
 #include    <snapdev/glob_to_list.h>
 #include    <snapdev/join_strings.h>
@@ -763,7 +770,7 @@ void packages::load_packages()
         , snapdev::glob_to_list_flag_t::GLOB_FLAG_IGNORE_ERRORS>(packages_path + "/*.conf");
     snapdev::enumerate(
               script_filenames
-            , std::bind(&packages::load_package, this, std::placeholders::_1));
+            , std::bind(&packages::load_package, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 
@@ -782,40 +789,42 @@ void packages::load_packages()
  */
 void packages::load_package(int index, std::string package_filename)
 {
+    snapdev::NOT_USED(index);
+
     advgetopt::conf_file_setup setup(package_filename);
     advgetopt::conf_file::pointer_t package(advgetopt::conf_file::get_conf_file(setup));
 
-    if(!package.has_parameter("name"))
+    if(!package->has_parameter("name"))
     {
         return;
     }
 
-    std::string const name(package.get_parameter("name"));
+    std::string const name(package->get_parameter("name"));
 
     std::int64_t priority(15);
-    if(package.has_parameter("priority"))
+    if(package->has_parameter("priority"))
     {
-        std::string const priority_str(package.get_parameter("priority"));
-        advgetopt::validator_integer(priority_str, priority);
+        std::string const priority_str(package->get_parameter("priority"));
+        advgetopt::validator_integer::convert_string(priority_str, priority);
     }
 
     watchdog_package_t::installation_t installation(watchdog_package_t::installation_t::PACKAGE_INSTALLATION_OPTIONAL);
-    if(package.has_parameter("intallation"))
+    if(package->has_parameter("intallation"))
     {
-        installation = watchdog_package_t::installation_from_string(package.get_parameter("installation"));
+        installation = watchdog_package_t::installation_from_string(package->get_parameter("installation"));
     }
 
     std::string description;
-    if(package.has_parameter("description"))
+    if(package->has_parameter("description"))
     {
-        description = package.get_parameter("description");
+        description = package->get_parameter("description");
     }
 
     advgetopt::string_list_t conflicts;
-    if(package.has_parameter("conflicts"))
+    if(package->has_parameter("conflicts"))
     {
         advgetopt::split_string(
-                  package.get_parameter("conflicts")
+                  package->get_parameter("conflicts")
                 , conflicts
                 , { "," });
     }
@@ -826,11 +835,11 @@ void packages::load_package(int index, std::string package_filename)
             , installation
             , priority);
 
-    wp->set_description(description);
+    wp.set_description(description);
 
     for(auto c : conflicts)
     {
-        wp->add_conflict(c);
+        wp.add_conflict(c);
     }
 
     g_packages.push_back(wp);

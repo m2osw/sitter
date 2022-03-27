@@ -20,11 +20,23 @@
 //
 #include    "processes.h"
 
+#include    "names.h"
+
+
+// sitter
+//
+#include    <sitter/exception.h>
+
 
 // cppprocess
 //
 #include    <cppprocess/process.h>
 #include    <cppprocess/io_capture_pipe.h>
+
+
+// advgetopt
+//
+#include    <advgetopt/conf_file.h>
 
 
 // snaplogger
@@ -39,6 +51,7 @@
 #include    <snapdev/glob_to_list.h>
 #include    <snapdev/not_reached.h>
 #include    <snapdev/not_used.h>
+#include    <snapdev/trim_string.h>
 
 
 // serverplugins
@@ -184,12 +197,12 @@ bool is_service_enabled(std::string const & service_name)
  *
  * \return true if the service is marked as active.
  */
-bool is_service_active(QString const & service_name)
+bool is_service_active(std::string const & service_name)
 {
     cppprocess::process p("query service status");
     p.set_command("systemctl");
     p.add_argument("is-active");
-    p.add_argument(service_name.toUtf8().data());
+    p.add_argument(service_name);
     cppprocess::io_capture_pipe::pointer_t out(std::make_shared<cppprocess::io_capture_pipe>());
     p.set_output_io(out);
     int r(p.start());
@@ -306,12 +319,14 @@ public:
     bool                        match(std::string const & name, std::string const & cmdline);
 
 private:
-    static advgetopt::string_list_t g_valid_backends;
+    static advgetopt::string_list_t
+                                g_valid_backends;
 
     std::string                 f_name = std::string();
     std::string                 f_command = std::string();
     std::string                 f_service = std::string();
     std::regex                  f_match = std::regex();
+    bool                        f_match_defined = false;
     bool                        f_mandatory = false;
     bool                        f_allow_duplicates = false;
     bool                        f_service_is_enabled = true;
@@ -343,7 +358,7 @@ sitter_process::vector_t    g_processes;
  * \param[in] allow_duplicates  Whether this entry can be defined more than
  *            once within various XML files.
  */
-sitter_process::sitter_process(std::tring const & name, bool mandatory, bool allow_duplicates)
+sitter_process::sitter_process(std::string const & name, bool mandatory, bool allow_duplicates)
     : f_name(name)
     , f_mandatory(mandatory)
     , f_allow_duplicates(allow_duplicates)
@@ -447,6 +462,7 @@ void sitter_process::set_service(std::string const & service, bool backend)
  */
 void sitter_process::set_match(std::string const & match)
 {
+    f_match_defined = !match.empty();
     f_match = match;
 }
 
@@ -582,13 +598,16 @@ bool sitter_process::is_process_expected_to_run()
                 // tokenize_string instead because it can auto-trim, only
                 // it uses std::string's)
                 //
-                g_valid_backends[idx] = g_valid_backends[idx].trimmed();
+                g_valid_backends[idx] = snapdev::trim_string(g_valid_backends[idx]);
             }
         }
 
         // check the status the administrator expects for this backend
         //
-        return g_valid_backends.contains(f_service);
+        return std::find(
+                  g_valid_backends.begin()
+                , g_valid_backends.end()
+                , f_service) != g_valid_backends.end();
     }
 
     // else -- this is a service, just not a backend (i.e. snapserver)
@@ -654,16 +673,16 @@ bool sitter_process::match(std::string const & command, std::string const & cmdl
         }
     }
 
-    if(f_match != nullptr)
+    if(f_match_defined)
     {
-        if(!std::match_regex(cmdline, *f_match, std::match_any))
+        if(!std::regex_match(cmdline, f_match, std::regex_constants::match_any))
         {
             return false;
         }
     }
 
     if(f_command.empty()
-    && f_match == nullptr)
+    && !f_match_defined)
     {
         // if no command line and no match were specified then f_name
         // is the process name
@@ -693,35 +712,38 @@ void load_process(int index, std::string processes_filename)
     advgetopt::conf_file_setup setup(processes_filename);
     advgetopt::conf_file::pointer_t process(advgetopt::conf_file::get_conf_file(setup));
 
-    if(!process.has_parameter("name"))
+    if(!process->has_parameter("name"))
     {
         return;
     }
-    std::string const name(process.get_parameter("name"));
+    std::string const name(process->get_parameter("name"));
 
     bool mandatory(false);
-    if(process.has_parameter("mandatory"))
+    if(process->has_parameter("mandatory"))
     {
-        mandatory = advgetopt::is_true(process_get_parameter("mandatory"));
+        mandatory = advgetopt::is_true(process->get_parameter("mandatory"));
     }
 
     bool allow_duplicates(false);
-    if(process.has_parameter("allow_duplicates"))
+    if(process->has_parameter("allow_duplicates"))
     {
-        allow_duplicates = advgetopt::is_true(process_get_parameter("allow_duplicates"));
+        allow_duplicates = advgetopt::is_true(process->get_parameter("allow_duplicates"));
     }
 
     auto it(std::find_if(
               g_processes.begin()
             , g_processes.end()
-            , [name, allow_duplicates](auto & wprocess)
+            , [name, allow_duplicates](auto const & wprocess)
             {
                 if(name == wprocess.get_name())
                 {
                     if(!allow_duplicates
                     || !wprocess.allow_duplicates())
                     {
-                        throw invalid_name("found process \"" + name + "\" twice and duplicates are not allowed.");
+                        throw invalid_name(
+                                  "found process \""
+                                + name
+                                + "\" twice and duplicates are not allowed.");
                     }
                     return true;
                 }
@@ -742,24 +764,24 @@ void load_process(int index, std::string processes_filename)
 
     sitter_process wp(name, mandatory, allow_duplicates);
 
-    if(process.has_parameter("command"))
+    if(process->has_parameter("command"))
     {
-        wp->set_command(process.get_parameter("command"));
+        wp.set_command(process->get_parameter("command"));
     }
 
-    if(process.has_parameter("service"))
+    if(process->has_parameter("service"))
     {
         bool backend(false);
-        if(process.has_parameter("backend"))
+        if(process->has_parameter("backend"))
         {
-            backend = advgetopt::is_true(process_get_parameter("backend"));
+            backend = advgetopt::is_true(process->get_parameter("backend"));
         }
-        wp->set_service(process.get_parameter("service"), backend);
+        wp.set_service(process->get_parameter("service"), backend);
     }
 
-    if(process.has_parameter("match"))
+    if(process->has_parameter("match"))
     {
-        wp->set_match(process.get_parameter("match"));
+        wp.set_match(process->get_parameter("match"));
     }
 
     g_processes.push_back(wp);
@@ -822,14 +844,14 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
         << "processes::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    load_processes(f_snap->get_server_parameter(g_name_processes_path));
+    load_processes(plugins()->get_server<sitter::server>()->get_server_parameter(g_sitter_name_processes_processes_path));
 
-    as2js::JSON::JSONValueRef & e(json["processes"]);
+    as2js::JSON::JSONValueRef e(json["processes"]);
 
     cppprocess::process_list list;
     for(auto it(list.begin()); it != list.end() && !g_processes.empty(); ++it)
     {
-        std::string name(info->get_process_name());
+        std::string name(it->second->get_name());
 
         // keep the full path in the cmdline parameter
         //
@@ -845,12 +867,12 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
 
         // add command line arguments
         //
-        int const count_max(info->get_args_size());
+        int const count_max(it->second->get_args_size());
         for(int c(0); c < count_max; ++c)
         {
             // skip empty arguments
             //
-            if(!info->get_arg(c).empty())
+            if(!it->second->get_arg(c).empty())
             {
                 cmdline += ' ';
 
@@ -858,7 +880,7 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
                 //                 only it would make the command line
                 //                 regular expression more complicated
                 //
-                cmdline += info->get_arg(c);
+                cmdline += it->second->get_arg(c);
             }
         }
         size_t const max_re(g_processes.size());
@@ -867,10 +889,12 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
         {
             if(g_processes[j].match(name, cmdline))
             {
-                QDomElement proc(doc.createElement("process"));
-                e.appendChild(proc);
-
-                proc.setAttribute("name", g_processes[j].get_name());
+                plugins()->get_server<sitter::server>()->output_process(
+                      "processes"
+                    , e
+                    , it->second
+                    , g_processes[j].get_name()
+                    , 35);      // <- priority is not used, the pointer cannot be nullptr
 
                 // for backends we have a special case when they are running,
                 // we may actually have them turned off and still running
@@ -879,31 +903,20 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
                 if(g_processes[j].is_backend()
                 && !g_processes[j].is_process_expected_to_run())
                 {
-                    proc.setAttribute("error", "running");
+                    // TODO: get the correct JSONValue to update (i.e. last
+                    //       item of array of processes is the process where
+                    //       we need to stick this error)
+                    //
+                    //e["error"] = "running";
 
-                    f_snap->append_error(
-                              doc
+                    plugins()->get_server<sitter::server>()->append_error(
+                              e
                             , "processes"
-                            , QString("found process \"%1\" running when disabled").arg(g_processes[j].get_name())
+                            , "found process \""
+                                + g_processes[j].get_name()
+                                + "\" running when disabled."
                             , 35);
                 }
-
-                proc.setAttribute("cmdline", cmdline);
-                proc.setAttribute("pcpu", QString("%1").arg(info->get_pcpu()));
-                proc.setAttribute("total_size", QString("%1").arg(info->get_total_size()));
-                proc.setAttribute("resident", QString("%1").arg(info->get_resident_size()));
-                proc.setAttribute("tty", QString("%1").arg(info->get_tty()));
-
-                unsigned long long utime;
-                unsigned long long stime;
-                unsigned long long cutime;
-                unsigned long long cstime;
-                info->get_times(utime, stime, cutime, cstime);
-
-                proc.setAttribute("utime", QString("%1").arg(utime));
-                proc.setAttribute("stime", QString("%1").arg(stime));
-                proc.setAttribute("cutime", QString("%1").arg(cutime));
-                proc.setAttribute("cstime", QString("%1").arg(cstime));
 
                 // remove from the list, if the list is empty, we are
                 // done; if the list is not empty by the time we return
@@ -920,16 +933,15 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
     size_t const max_re(g_processes.size());
     for(size_t j(0); j < max_re; ++j)
     {
-        QDomElement proc(doc.createElement("process"));
-        e.appendChild(proc);
+        as2js::JSON::JSONValueRef proc(json["process"][-1]);
+        proc["name"] = g_processes[j].get_name();
 
-        proc.setAttribute("name", g_processes[j].get_name());
         if(g_processes[j].is_process_expected_to_run())
         {
             // this process is expected to be running so having
             // found it in this loop, it is an error (missing)
             //
-            proc.setAttribute("error", "missing");
+            proc["error"] = "missing";
 
             // TBD: what should the priority be on this one?
             //      it's likely super important so more than 50
@@ -937,15 +949,19 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
             //      close to 100?
             //
             int priority(50);
-            char const * message_fmt = nullptr;
+            std::string message;
             if(g_processes[j].is_mandatory())
             {
-                message_fmt = "can't find mandatory process \"%1\" in the list of processes.";
+                message += "can't find mandatory process \"";
+                message += g_processes[j].get_name();
+                message += "\" in the list of processes.";
                 priority = 95;
             }
             else
             {
-                message_fmt = "can't find expected process \"%1\" in the list of processes.";
+                message += "can't find expected process \"";
+                message += g_processes[j].get_name();
+                message += "\" in the list of processes.";
                 priority = 60;
             }
 
@@ -958,15 +974,15 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
                 priority = 5;
             }
 
-            f_snap->append_error(
-                      doc
+            plugins()->get_server<sitter::server>()->append_error(
+                      proc
                     , "processes"
-                    , QString(message_fmt).arg(g_processes[j].get_name())
+                    , message
                     , priority);
         }
         else
         {
-            proc.setAttribute("resident", "no");
+            proc["resident"] = "no";
         }
     }
 }
