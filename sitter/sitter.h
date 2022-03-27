@@ -19,14 +19,20 @@
 
 // eventdispatcher
 //
-#include    <eventdispatcher/dispatcher.h>
 #include    <eventdispatcher/connection_with_send_message.h>
+#include    <eventdispatcher/dispatcher.h>
+#include    <eventdispatcher/logrotate_udp_messenger.h>
 
 
-// cppthread
+// advgetopt
 //
-#include    <cppthread/plugins.h>
-#include    <cppthread/plugins_signals.h>
+#include    <advgetopt/options.h>
+
+
+// serverplugins
+//
+#include    <serverplugins/server.h>
+#include    <serverplugins/signals.h>
 
 
 // cppprocess
@@ -79,9 +85,10 @@ class watchdog_child;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 class server
-    : public ed::connection_with_send_message
+    : public std::enable_shared_from_this<server>
+    , public ed::connection_with_send_message
     , public ed::dispatcher<server>
-    , public std::enable_shared_from_this<server>
+    , public serverplugins::server
 {
 public:
     typedef std::shared_ptr<server>         pointer_t;
@@ -102,6 +109,8 @@ public:
     bool                get_snapcommunicator_is_connected() const;
     time_t              get_snapcommunicator_connected_on() const;
     time_t              get_snapcommunicator_disconnected_on() const;
+    std::string         get_cache_path(std::string const & filename);
+    std::string         get_server_parameter(std::string const & name) const;
 
     PLUGIN_SIGNAL_WITH_MODE(process_watch, (as2js::JSON & json), (json), NEITHER);
 
@@ -119,7 +128,7 @@ public:
     void                msg_rusage(ed::message & message);
     void                msg_reload_config(ed::message & message);
 
-    void                output_process(
+    bool                output_process(
                               std::string const & plugin_name
                             , as2js::JSON::JSONValueRef & json
                             , cppprocess::process_info::pointer_t info
@@ -145,6 +154,9 @@ private:
     void                init_parameters();
     void                run_watchdog_process();
 
+    advgetopt::getopt   f_opts;
+    ed::logrotate_extension
+                        f_logrotate;
     time_t const        f_start_date;
     int64_t             f_statistics_frequency = 0;
     int64_t             f_statistics_period = 0;
@@ -162,6 +174,7 @@ private:
     bool                f_force_restart = false;
     time_t              f_snapcommunicator_connected = 0;
     time_t              f_snapcommunicator_disconnected = 0;
+    std::string         f_cache_path = std::string();
 };
 #pragma GCC diagnostic pop
 

@@ -38,6 +38,11 @@
 #include    <snapdev/not_used.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
 // last include
 //
 #include <snapdev/poison.h>
@@ -49,14 +54,14 @@ namespace sitter
 namespace firewall
 {
 
-CPPTHREAD_PLUGIN_START(firewall, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(firewall, 1, 0)
+    , ::serverplugins::description(
             "Check whether the Apache server is running.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("security")
-    , ::cppthread::plugin_categorization_tag("firewall")
-CPPTHREAD_PLUGIN_END(firewall)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("security")
+    , ::serverplugins::categorization_tag("firewall")
+SERVERPLUGINS_END(firewall)
 
 
 
@@ -66,14 +71,10 @@ CPPTHREAD_PLUGIN_END(firewall)
  *
  * This function terminates the initialization of the firewall plugin
  * by registering for various events.
- *
- * \param[in] s  The child handling this request.
  */
-void firewall::bootstrap(void * s)
+void firewall::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    CPPTHREAD_PLUGIN_LISTEN(firewall, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(firewall, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -89,13 +90,13 @@ void firewall::on_process_watch(as2js::JSON::JSONValueRef & json)
         << "firewall::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    as2js::JSON::JSONValueRef e(json["firewall"];
+    as2js::JSON::JSONValueRef e(json["firewall"]);
 
     // first we check that the snapfirewall daemon is running
     //
     cppprocess::process_list list;
     cppprocess::process_info::pointer_t info(list.find("snapfirewall"));
-    if(!f_server->output_process("firewall", e, info, "snapfirewall", 95))
+    if(!plugins()->get_server<sitter::server>()->output_process("firewall", e, info, "snapfirewall", 95))
     {
         return;
     }

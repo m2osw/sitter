@@ -234,7 +234,7 @@ advgetopt::option const g_command_line_options[] =
 // until we have C++20 remove warnings this way
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
-advgetopt::options_environment const g_command_line_options_environment =
+advgetopt::options_environment const g_options_environment =
 {
     .f_project_name = "sitter",
     .f_group_name = nullptr,
@@ -764,17 +764,25 @@ namespace watchdog
  * This constructor makes sure to setup the correct filename for the
  * snapwatchdog server configuration file.
  */
-server::server()
+server::server(int argc, char * argv[])
     : dispatcher(this, g_snapwatchdog_service_messages)
+    , f_opts(g_options_environment)
+    , f_logrotate(f_opts, "127.0.0.1", 4988)
     , f_server_start_date(time(nullptr))
     , f_snapcommunicator_disconnected(time(nullptr))
 {
-    server::set_config_filename("snapwatchdog");
+    snaplogger::add_logger_options(f_opts);
+    f_logrotate.add_logrotate_options();
+    f_opts.finish_parsing(argc, argv);
+    if(!snaplogger::process_logger_options(f_opts, "/etc/sitter/logger"))
+    {
+        // exit on any error
+        //
+        throw advgetopt::getopt_exit("logger options generated an error.", 0);
+    }
+    f_logrotate.process_logrotate_options();
 
     add_communicator_commands();
-#ifdef _DEBUG
-    set_trace();
-#endif
 }
 
 
@@ -1657,7 +1665,7 @@ int64_t server::get_error_report_critical_span() const
 
 
 
-void server::output_process(
+bool server::output_process(
       std::string const & plugin_name
     , as2js::JSON::JSONValueRef & json
     , cppprocess::process_info::pointer_t info
@@ -1706,6 +1714,8 @@ void server::output_process(
     name["stime"] = std::to_string(stime);
     name["cutime"] = std::to_string(cutime);
     name["cstime"] = std::to_string(cstime);
+
+    return true;
 }
 
 
@@ -1789,6 +1799,17 @@ time_t server::get_snapcommunicator_disconnected_on() const
 }
 
 
+std::string server::get_server_parameter(std::string const & name) const
+{
+    if(f_opt.is_defined(name))
+    {
+        return f_opt.get_string(name);
+    }
+
+    return std::string();
+}
+
+
 
 /** \brief Initialize the watchdog child.
  *
@@ -1846,7 +1867,7 @@ bool watchdog_child::is_tick() const
  *
  * \return The full path including your filename.
  */
-QString watchdog_child::get_cache_path(QString const & filename)
+std::string sitter::get_cache_path(std::string const & filename)
 {
     if(f_cache_path.empty())
     {
@@ -1857,21 +1878,23 @@ QString watchdog_child::get_cache_path(QString const & filename)
         {
             // no administrator path, use the default
             //
-            f_cache_path = "/var/cache/snapwebsites/snapwatchdog";
+            f_cache_path = "/var/cache/sitter";
         }
 
-        // the path to "/var/cache/snapwebsites" will always
-        // exists, however "/var/cache/snapwebsites/snapwatchdog"
-        // may get deleted once in a while, we have to create it
+        // the path to "/var/cache/sitter" should always exist
         //
         // TODO: handle possible error
         //
-        snapdev::mkdir_p(f_cache_path);
+        if(!snapdev::mkdir_p(f_cache_path))
+        {
+            f_cache_path.clear();
+            return std::string();
+        }
     }
 
     // append the name of the file to check out in the path
     //
-    return QString("%1/%2").arg(toQString(f_cache_path)).arg(filename);
+    return f_cache_path + '/' + filename;
 }
 
 

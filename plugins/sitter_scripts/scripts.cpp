@@ -23,6 +23,8 @@
 //
 #include    "scripts.h"
 
+#include    "names.h"
+
 
 // sitter
 //
@@ -65,6 +67,11 @@
 #include    <libaddr/iface.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -78,122 +85,94 @@ namespace scripts
 
 
 
-CPPTHREAD_PLUGIN_START(scripts, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(scripts, 1, 0)
+    , ::serverplugins::description(
             "Check whether a set of scripts are running.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("custom")
-    , ::cppthread::plugin_categorization_tag("script")
-CPPTHREAD_PLUGIN_END(scripts)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("custom")
+    , ::serverplugins::categorization_tag("script")
+SERVERPLUGINS_END(scripts)
 
 
 
-/** \brief Get a fixed scripts plugin name.
- *
- * The scripts plugin makes use of different names. This function ensures
- * that you get the right spelling for a given name.
- *
- * \param[in] name  The name to retrieve.
- *
- * \return A pointer to the name.
- */
-char const * get_name(name_t name)
-{
-    switch(name)
-    {
-    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_DEFAULT_LOG_SUBFOLDER:
-        return "snapwatchdog-output";
-
-    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_LOG_SUBFOLDER:
-        return "log_subfolder";
-
-    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT:
-        return "watchdog_watchscripts_output";
-
-    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT_DEFAULT:
-        return "/var/lib/snapwebsites/snapwatchdog/script-files";
-
-    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH:
-        return "watchdog_watchscripts_path";
-
-    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH_DEFAULT:
-        return "/usr/share/snapwebsites/snapwatchdog/scripts";
-
-    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER:
-        return "watch_script_starter";
-
-    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER_DEFAULT:
-        return "/usr/sbin/watch_script_starter";
-
-    default:
-        // invalid index
-        throw snap_logic_error("Invalid SNAP_NAME_WATCHDOG_WATCHSCRIPTS_...");
-
-    }
-    snapdev::NOT_REACHED();
-}
+//char const * get_name(name_t name)
+//{
+//    switch(name)
+//    {
+//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_DEFAULT_LOG_SUBFOLDER:
+//        return "snapwatchdog-output";
+//
+//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_LOG_SUBFOLDER:
+//        return "log_subfolder";
+//
+//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT:
+//        return "watchdog_watchscripts_output";
+//
+//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT_DEFAULT:
+//        return "/var/lib/snapwebsites/snapwatchdog/script-files";
+//
+//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH:
+//        return "watchdog_watchscripts_path";
+//
+//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH_DEFAULT:
+//        return "/usr/share/snapwebsites/snapwatchdog/scripts";
+//
+//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER:
+//        return "watch_script_starter";
+//
+//    case name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER_DEFAULT:
+//        return "/usr/sbin/watch_script_starter";
+//
+//    default:
+//        // invalid index
+//        throw snap_logic_error("Invalid SNAP_NAME_WATCHDOG_WATCHSCRIPTS_...");
+//
+//    }
+//    snapdev::NOT_REACHED();
+//}
 
 
 /** \brief Initialize scripts.
  *
  * This function terminates the initialization of the scripts plugin
  * by registering for various events.
- *
- * \param[in] snap  The child handling this request.
  */
-void scripts::bootstrap(void * s)
+void scripts::bootstrap()
 {
-    f_server = static_cast<server *>(s);
+    SERVERPLUGINS_LISTEN(scripts, "server", server, process_watch, boost::placeholders::_1);
 
-    SNAP_LISTEN(scripts, "server", server, process_watch, boost::placeholders::_1);
-
-    f_watch_script_starter = [&]()
-        {
-            std::string const starter(f_snap->get_server_parameter(get_name(name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER)));
-            if(starter.empty())
-            {
-                return get_name(name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER_DEFAULT);
-            }
-            return starter;
-        }();
+    sitter::server::pointer_t server(plugins()->get_server<sitter::server>());
+    f_watch_script_starter = server->get_server_parameter(g_name_scripts_watch_script_starter);
+    if(f_watch_script_starter.empty())
+    {
+        f_watch_script_starter = g_name_scripts_watch_script_starter_default;
+    }
 
     // setup a variable that our scripts can use to save data as they
     // see fit; especially, many scripts need to remember what they've
     // done before or maybe they don't want to run too often and use a
     // file to know when to run again
     //
-    std::string const scripts_output([&]()
-        {
-            std::string const filename(f_snap->get_server_parameter(get_name(name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT)));
-            if(filename.empty())
-            {
-                return get_name(name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT_DEFAULT);
-            }
-            return filename;
-        }());
-    setenv("WATCHDOG_WATCHSCRIPTS_OUTPUT", scripts_output.c_str());
+    std::string scripts_output = server->get_server_parameter(g_name_scripts_output);
+    if(scripts_output.empty())
+    {
+        scripts_output = g_name_scripts_output_default;
+    }
+    setenv("WATCHDOG_WATCHSCRIPTS_OUTPUT", scripts_output.c_str(), 1);
 
-    f_log_path = [&]()
-        {
-            std::string const path(f_snap->get_server_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_LOG_PATH)));
-            if(path.empty())
-            {
-                return get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_DEFAULT_LOG_PATH);
-            }
-            return path;
-        }();
+    f_log_path = server->get_server_parameter(g_name_scripts_log_path);
+    if(f_log_path.empty())
+    {
+        f_log_path = g_name_scripts_default_log_path;
+    }
     setenv("WATCHDOG_WATCHSCRIPTS_LOG_PATH", f_log_path.c_str(), 1);
 
-    f_log_subfolder = [&]()
-        {
-            std::string const folder(f_snap->get_server_parameter(get_name(name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_LOG_SUBFOLDER)));
-            if(folder.isEmpty())
-            {
-                return get_name(name_t::SNAP_NAME_WATCHDOG_WATCHSCRIPTS_DEFAULT_LOG_SUBFOLDER);
-            }
-            return folder;
-        }();
+    f_log_subfolder = server->get_server_parameter(g_name_scripts_log_subfolder);
+    if(f_log_subfolder.empty())
+    {
+        f_log_subfolder = g_name_scripts_default_log_subfolder;
+    }
     setenv("WATCHDOG_WATCHSCRIPTS_LOG_SUBFOLDER", f_log_subfolder.c_str(), 1);
 
     f_scripts_output_log = f_log_path + "/" + f_log_subfolder + "/snapwatchdog-scripts.log";
@@ -219,7 +198,7 @@ void scripts::bootstrap(void * s)
  *
  * \param[in] doc  The document.
  */
-void scripts::on_process_watch(QDomDocument doc)
+void scripts::on_process_watch(as2js::JSON::JSONValueRef & json)
 {
     SNAP_LOG_DEBUG
         << "scripts::on_process_watch(): processing"
@@ -406,14 +385,12 @@ void scripts::process_script(int index, std::string script_filename)
  */
 std::string scripts::generate_header(std::string const & type)
 {
-    std::string header = std::string("--- %1 -----------------------------------------------------------\n"
-                     "Snap-Watchdog-Version: " SNAPWATCHDOG_VERSION_STRING "\n"
-                     "Output-Type: %1\n"
-                     "Date: %2\n"
-                     "Script: %3\n")
-                            .arg(type)
-                            .arg(format_date(f_start_date))
-                            .arg(f_script_filename);
+    std::string header =
+          std::string("--- ") + type + " -----------------------------------------------------------\n"
+          "Snap-Watchdog-Version: " SITTER_VERSION_STRING "\n"
+          "Output-Type: " + type + "\n"
+          "Date: " + format_date(f_start_date) + "\n"
+          "Script: " + f_script_filename + "\n";
 
     // TODO: see whether we should instead use snapdev::get_hostname()
     snapdev::file_contents hostname("/etc/hostname");

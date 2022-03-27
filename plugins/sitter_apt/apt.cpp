@@ -22,15 +22,28 @@
 #include    "apt.h"
 
 
+// advgetopt
+//
+#include    <advgetopt/conf_file.h>
+#include    <advgetopt/validator_integer.h>
+
+
 // snaplogger
 //
 #include    <snaplogger/message.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
 // snapdev
 //
+#include    <snapdev/file_contents.h>
 #include    <snapdev/not_used.h>
 #include    <snapdev/not_reached.h>
+#include    <snapdev/trim_string.h>
 
 
 // last include
@@ -45,15 +58,15 @@ namespace apt
 {
 
 
-CPPTHREAD_PLUGIN_START(apt, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(apt, 1, 0)
+    , ::serverplugins::description(
             "Check the apt-check results. If an update is available, it"
             " will show up as a low priority \"error\" unless it is marked"
             " as a security upgrade.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("packages")
-CPPTHREAD_PLUGIN_END(apt)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("packages")
+SERVERPLUGINS_END(apt)
 
 
 
@@ -62,14 +75,10 @@ CPPTHREAD_PLUGIN_END(apt)
  *
  * This function terminates the initialization of the apt plugin
  * by registering for different events.
- *
- * \param[in] sitter  The server handling this request.
  */
-void apt::bootstrap(void * server)
+void apt::bootstrap()
 {
-    f_server = static_cast<server *>(server);
-
-    SNAP_LISTEN(apt, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(apt, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -85,7 +94,7 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
         << "apt::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    as2js::JSON::JSONValueRef & apt(json["apt"]);
+    as2js::JSON::JSONValueRef e(json["apt"]);
 
     // get path to apt-check file
     //
@@ -118,8 +127,8 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
             std::string const err_msg(
                     "we are unable to check whether some updates are"
                     " available (the `apt-check` command was not found)");
-            apt["error"] = err_msg;
-            f_snap->append_error(doc, "apt", err_msg, 98);
+            e["error"] = err_msg;
+            plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, 98);
             return;
         }
 
@@ -130,11 +139,11 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
             time_t const now(time(nullptr));
 
             std::int64_t cached_on;
-            advgetopt::validator_integer(counts[0], cached_on);
+            advgetopt::validator_integer::convert_string(counts[0], cached_on);
 
             // save the date when it was last updated
             //
-            apt["last-updated"] = cached_on;
+            e["last-updated"] = cached_on;
 
             // out of date tested with a +1h because it could take a little
             // while to check for new updates and the date here is not
@@ -154,13 +163,13 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                 // counts[1] packages can be upgraded
                 //
                 std::int64_t count;
-                advgetopt::validator_integer(counts[1], count);
-                apt["total-updates"] = count;
+                advgetopt::validator_integer::convert_string(counts[1], count);
+                e["total-updates"] = count;
 
                 // counts[2] are security upgrades
                 //
-                advgetopt::validator_integer(counts[2], count);
-                apt["security-updates"] = count;
+                advgetopt::validator_integer::convert_string(counts[2], count);
+                e["security-updates"] = count;
 
                 // the following generates an "error" with a low priority
                 // (under 50) in case a regular set of files can be upgraded
@@ -178,8 +187,8 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                     priority = 45;
                     err_msg = "there are standard packages that can be upgraded now on this system.";
                 }
-                apt["error"] = err_msg;
-                f_server->append_error(apt, "apt", err_msg, priority);
+                e["error"] = err_msg;
+                plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, priority);
                 return;
             }
             else
@@ -188,8 +197,8 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                           "\""
                         + apt_check_output
                         + "\" file is out of date, the snapmanagerdaemon did not update it for more than a day");
-                apt["error"] = err_msg;
-                f_server->append_error(apt, "apt", err_msg, 50);
+                e["error"] = err_msg;
+                plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, 50);
                 return;
             }
         }
@@ -202,8 +211,8 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                       "could not figure out the contents of \""
                     + apt_check_output
                     + "\", snapmanagerdaemon may have changed the format since we wrote the sitter apt plugin?");
-            apt["error"] = err_msg;
-            f_server->append_error(apt, "apt", err_msg, 15);
+            e["error"] = err_msg;
+            plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, 15);
             return;
         }
     }
@@ -218,8 +227,8 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                   "\""
                 + apt_check_output
                 + "\" file is missing, sitter is not getting APT status updates from snapmanagerdaemon");
-        apt["error"] = err_msg;
-        f_server->append_error(apt, "apt", err_msg, 20);
+        e["error"] = err_msg;
+        plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, 20);
         return;
     }
 }

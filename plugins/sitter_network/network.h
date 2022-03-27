@@ -21,6 +21,11 @@
 #include    "sitter/sitter.h"
 
 
+// serverplugins
+//
+#include    <serverplugins/plugin.h>
+
+
 
 namespace sitter
 {
@@ -30,22 +35,21 @@ namespace network
 
 
 class network
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-    CPPTHREAD_PLUGIN_DEFAULTS(network);
+    SERVERPLUGINS_DEFAULTS(network);
 
     // cppthread::plugin implementation
-    virtual void        bootstrap(void * s) override;
+    virtual void        bootstrap() override;
 
     // server signals
-    void                on_process_watch(as2js::JSON & json);
+    void                on_process_watch(as2js::JSON::JSONValueRef & json);
 
 private:
-    bool                find_snapcommunicator(as2js::JSON & json);
-    bool                verify_snapcommunicator_connection(as2js::JSON & json);
+    bool                find_snapcommunicator(as2js::JSON::JSONValueRef & json);
+    bool                verify_snapcommunicator_connection(as2js::JSON::JSONValueRef & json);
 
-    server *            f_server = nullptr;
     std::string         f_network_data_path = std::string();
 };
 

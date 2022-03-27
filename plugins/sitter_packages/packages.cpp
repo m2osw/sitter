@@ -20,6 +20,14 @@
 //
 #include    "packages.h"
 
+#include    "names.h"
+
+
+
+// sitter
+//
+#include    <sitter/exception.h>
+
 
 // snaplogger
 //
@@ -39,6 +47,12 @@
 #include    <snapdev/join_strings.h>
 #include    <snapdev/not_reached.h>
 #include    <snapdev/not_used.h>
+#include    <snapdev/trim_string.h>
+
+
+// serverplugins
+//
+#include    <serverplugins/collection.h>
 
 
 // C++
@@ -83,17 +97,17 @@ namespace packages
 {
 
 
-CPPTHREAD_PLUGIN_START(packages, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(packages, 1, 0)
+    , ::serverplugins::description(
           "Check whether a some required packages are missing,"
           " some installed packages are unwanted (may cause problems"
           " with running Snap! or are known security risks,)"
           " or packages that are in conflict.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("security")
-    , ::cppthread::plugin_categorization_tag("packages")
-CPPTHREAD_PLUGIN_END(packages)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("security")
+    , ::serverplugins::categorization_tag("packages")
+SERVERPLUGINS_END(packages)
 
 
 
@@ -107,20 +121,29 @@ namespace
 
 /** \brief Class used to read the list of packages to check.
  *
- * The class understands the following XML format:
+ * This class holds one package definition as read from a Unix like
+ * configuration file.
+ *
+ * The class understands the following definitions:
  *
  * \code
- * <watchdog-packages>
- *   <package name="name" priority="15" installation="optional|required|unwanted">
- *      <description>...</description>
- *      <conflict>...</conflict>
- *   </package>
- *   <package name="..." ...>
- *      ...
- *   </package>
- *   ...
- * </watchdog-packages>
+ *     name=<package-name>
+ *     priority=<priority>
+ *     installation=<optional|required|unwanted>
+ *     description="<description>"
+ *     conflicts=<package-name>[,...]
  * \endcode
+ *
+ * The `priority` parameter is the priority used to send an error message.
+ * A higher priority is more likely to generate an email that gets sent
+ * to the administrator.
+ *
+ * A `package-name` characters are limited to `[-+.:a-z0-9]+`. The name
+ * must start with a letter. It can end with a letter or a digit.
+ *
+ * The `conflicts` parameter defines one or more package names that
+ * cannot be installed along this package (i.e. `ntp` vs `ntpdate`).
+ * Separate multiple names with commas.
  */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
@@ -138,7 +161,11 @@ public:
         PACKAGE_INSTALLATION_UNWANTED
     };
 
-                                watchdog_package_t(watchdog_child * snap, std::string const & name, installation_t installation, int priority);
+                                watchdog_package_t(
+                                          sitter::server::pointer_t snap
+                                        , std::string const & name
+                                        , installation_t installation
+                                        , int priority);
 
     void                        set_description(std::string const & description);
     void                        add_conflict(std::string const & package_name);
@@ -157,7 +184,7 @@ public:
     static installation_t       installation_from_string(std::string const & installation);
 
 private:
-    watchdog_child *            f_snap = nullptr;
+    sitter::server::pointer_t   f_server = sitter::server::pointer_t();
     std::string                 f_name = std::string();
     std::string                 f_description = std::string();
     package_name_set_t          f_conflicts = package_name_set_t();
@@ -185,8 +212,8 @@ bool                                        g_cache_modified = false;
  * \param[in] name  The name of the package conflict.
  * \param[in] priority  The priority to use in case of conflict.
  */
-watchdog_package_t::watchdog_package_t(watchdog_child * snap, std::string const & name, installation_t installation, int priority)
-    : f_snap(snap)
+watchdog_package_t::watchdog_package_t(sitter::server::pointer_t server, std::string const & name, installation_t installation, int priority)
+    : f_server(server)
     , f_name(name)
     , f_installation(installation)
     , f_priority(priority)
@@ -224,7 +251,7 @@ void watchdog_package_t::add_conflict(std::string const & package_name)
 {
     if(package_name == f_name)
     {
-        throw invalid_argument("a package cannot be in conflict with itself");
+        throw invalid_parameter("a package cannot be in conflict with itself");
     }
 
     f_conflicts.insert(package_name);
@@ -370,21 +397,35 @@ bool watchdog_package_t::is_package_installed(std::string const & package_name)
     {
         g_cache_loaded = true;
 
-        QString const packages_filename(f_snap->get_cache_path(g_name_packages_cache_filename));
-        QFile in(packages_filename);
-        if(in.open(QIODevice::ReadOnly))
+        std::string const packages_filename(f_server->get_cache_path(g_name_packages_cache_filename));
+        snapdev::file_contents in(packages_filename);
+        if(in.read_all())
         {
-            char buf[256];
-            while(in.readLine(buf, sizeof(buf) - 1) != -1)
+            std::string const content(in.contents());
+            std::string::size_type pos(0);
+            while(pos != std::string::npos)
             {
-                buf[sizeof(buf) - 1] = '\0';
-
-                char const * equal(strchr(buf, '='));
-                if(equal != nullptr)
+                std::string::size_type s(pos);
+                pos = content.find('\n', pos);
+                std::string line;
+                if(pos == std::string::npos)
                 {
-                    std::string const name(buf, equal - buf);
-                    bool value(equal[1] == 't');
-                    g_installed_packages[name] = value;
+                    line = content.substr(s);
+                }
+                else
+                {
+                    line = content.substr(s, pos - s);
+                    ++pos;  // skip the '\n'
+                }
+                std::string::size_type equal(line.find('='));
+                if(equal != std::string::npos)
+                {
+                    std::string const name(line.substr(0, equal));
+                    if(!name.empty())
+                    {
+                        std::string const value(line.substr(equal + 1));
+                        g_installed_packages[name] = value == "t";
+                    }
                 }
             }
         }
@@ -516,7 +557,7 @@ watchdog_package_t::installation_t watchdog_package_t::installation_from_string(
         return installation_t::PACKAGE_INSTALLATION_UNWANTED;
     }
 
-    throw invalid_argument("invalid installation name, cannot load your XML file");
+    throw invalid_parameter("invalid installation name, cannot load your configuration file");
 }
 
 
@@ -533,13 +574,13 @@ watchdog_package_t::installation_t watchdog_package_t::installation_from_string(
  * The cache gets reset once a day so it can be redefined anew at that time
  * and a new status determined.
  *
- * \param[in] snap  A pointer to the child so we can get the path to the cache.
+ * \param[in] server  A pointer to the child so we can get the path to the cache.
  */
-void save_cache(watchdog_child * snap)
+void save_cache(sitter::server::pointer_t server)
 {
     if(g_cache_modified)
     {
-        std::string const packages_filename(snap->get_cache_path(g_name_packages_cache_filename));
+        std::string const packages_filename(server->get_cache_path(g_name_packages_cache_filename));
         std::ofstream out(packages_filename);
         for(auto const & p : g_installed_packages)
         {
@@ -564,14 +605,10 @@ void save_cache(watchdog_child * snap)
  *
  * This function terminates the initialization of the packages plugin
  * by registering for various events.
- *
- * \param[in] snap  The child handling this request.
  */
-void packages::bootstrap(void * s)
+void packages::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    SNAP_LISTEN(packages, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(packages, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -589,7 +626,7 @@ void packages::on_process_watch(as2js::JSON::JSONValueRef & json)
 
     load_packages();
 
-    as2js::JSON::JSONValueRef & e(json["packages"]);
+    as2js::JSON::JSONValueRef e(json["packages"]);
 
 SNAP_LOG_TRACE
 << "got "
@@ -598,9 +635,10 @@ SNAP_LOG_TRACE
 << SNAP_LOG_SEND;
     for(auto pc : g_packages)
     {
-        as2js::JSON::JSONValueRef & package(e["package"][-1]);
+        as2js::JSON::JSONValueRef package(e["package"][-1]);
 
-        package["name"] = pc.get_name();
+        std::string const name(pc.get_name());
+        package["name"] = name;
         package["installation"] = pc.get_installation_as_string();
         auto const & possible_conflicts(pc.get_conflicts());
         if(!possible_conflicts.empty())
@@ -616,10 +654,10 @@ SNAP_LOG_TRACE
             {
                 // package is required, so it is in error if not installed
                 //
-                package.setAttribute("error", "missing");
+                package["error"] = "missing";
 
-                f_snap->append_error(
-                          doc
+                plugins()->get_server<sitter::server>()->append_error(
+                          package
                         , "packages"
                         , "The \""
                           + name
@@ -638,10 +676,10 @@ SNAP_LOG_TRACE
             {
                 // package is unwanted, so it should not be installed
                 //
-                package.setAttribute("error", "unwanted package is installed");
+                package["error"] = "unwanted package is installed";
 
-                f_snap->append_error(
-                          doc
+                plugins()->get_server<sitter::server>()->append_error(
+                          package
                         , "packages"
                         , "The \""
                           + name
@@ -669,7 +707,7 @@ SNAP_LOG_TRACE
             auto const & conflicts(pc.get_packages_in_conflict());
             std::string const conflicts_list(snapdev::join_strings(conflicts, "\", \""));
 
-            package.setAttribute("error", "package with conflicts");
+            package["error"] = "package with conflicts";
 
             std::stringstream ss;
 
@@ -680,7 +718,7 @@ SNAP_LOG_TRACE
                << conflicts_list
                << "\".";
 
-            f_snap->append_error(
+            plugins()->get_server<sitter::server>()->append_error(
                       json
                     , "packages"
                     , ss.str()
@@ -691,7 +729,7 @@ SNAP_LOG_TRACE
 
     // the cache may have been modified, save it if so
     //
-    save_cache(f_snap);
+    save_cache(plugins()->get_server<sitter::server>());
 }
 
 
@@ -704,12 +742,12 @@ void packages::load_packages()
 {
     g_packages.clear();
 
-    // get the path to the packages XML files
+    // get the path to the packages configuration files
     //
-    std::string packages_path(f_snap->get_server_parameter(g_name_packages_path));
+    std::string packages_path(plugins()->get_server<sitter::server>()->get_server_parameter(g_name_packages_path));
     if(packages_path.empty())
     {
-        packages_path = "/usr/share/snapwebsites/snapwatchdog/packages";
+        packages_path = "/usr/share/sitter/packages";
     }
     SNAP_LOG_TRACE
         << "load package files from "
@@ -717,106 +755,85 @@ void packages::load_packages()
         << "..."
         << SNAP_LOG_SEND;
 
-    // parse every XML file
+    // parse every configuration file
     //
-    snapdev::glob_list script_filenames;
+    snapdev::glob_to_list<std::vector<std::string>> script_filenames;
     script_filenames.read_path<
-        snapdev::glob_to_list_flag_t::GLOB_FLAG_NO_ESCAPE>(packages_path + "/*.conf");
-    script_filenames.enumerate_glob(std::bind(&packages::load_xml, this, std::placeholders::_1));
+          snapdev::glob_to_list_flag_t::GLOB_FLAG_NO_ESCAPE
+        , snapdev::glob_to_list_flag_t::GLOB_FLAG_IGNORE_ERRORS>(packages_path + "/*.conf");
+    snapdev::enumerate(
+              script_filenames
+            , std::bind(&packages::load_package, this, std::placeholders::_1));
 }
 
 
-/** \brief Load a package XML file.
+/** \brief Load a package configuration file.
  *
- * This function loads one XML file and transform it in a
+ * This function loads one configuration file and transform it in a
  * watchdog_package_t object.
  *
  * \exception invalid_name
  * This exception is raised if the name from a package is empty
  * or undefined.
  *
+ * \param[in] index  The index of the file to load.
  * \param[in] package_filename  The name of an XML file representing
  *                              required, unwanted, or conflicted packages.
  */
-void packages::load_xml(QString package_filename)
+void packages::load_package(int index, std::string package_filename)
 {
-    QFile input(package_filename);
-    if(input.open(QIODevice::ReadOnly))
+    advgetopt::conf_file_setup setup(package_filename);
+    advgetopt::conf_file::pointer_t package(advgetopt::conf_file::get_conf_file(setup));
+
+    if(!package.has_parameter("name"))
     {
-        QDomDocument doc;
-        if(doc.setContent(&input, false)) // TODO: add error handling for debug
-        {
-            // we got the XML loaded
-            //
-            QDomNodeList packages_tags(doc.elementsByTagName("package"));
-            int const max(packages_tags.size());
-SNAP_LOG_TRACE
-<< "got XML from "
-<< package_filename
-<< "... with "
-<< max
-<< " package definitions"
-<< SNAP_LOG_SEND;
-            for(int idx(0); idx < max; ++idx)
-            {
-                QDomNode p(packages_tags.at(idx));
-                if(!p.isElement())
-                {
-                    continue;
-                }
-                QDomElement package(p.toElement());
-                QString const name(package.attribute("name"));
-                if(name.empty())
-                {
-                    throw invalid_name("the name of a package cannot be the empty string or go undefined");
-                }
-
-                int priority(15);
-                if(package.hasAttribute("priority"))
-                {
-                    bool ok(false);
-                    priority = package.attribute("priority").toInt(&ok, 10);
-                    if(!ok)
-                    {
-                        throw invalid_priority("the error priority of a package must be a valid decimal number");
-                    }
-                }
-
-                watchdog_package_t::installation_t installation(watchdog_package_t::installation_t::PACKAGE_INSTALLATION_OPTIONAL);
-                if(package.hasAttribute("installation"))
-                {
-                    installation = watchdog_package_t::installation_from_string(package.attribute("installation").toUtf8().data());
-                }
-
-                watchdog_package_t wp(f_snap, name.toUtf8().data(), installation, priority);
-
-                QDomNodeList description_tags(package.elementsByTagName("description"));
-                if(description_tags.size() > 0)
-                {
-                    QDomNode description_node(description_tags.at(0));
-                    if(description_node.isElement())
-                    {
-                        QDomElement description(description_node.toElement());
-                        wp.set_description(description.text().toUtf8().data());
-                    }
-                }
-
-                QDomNodeList conflict_tags(package.elementsByTagName("conflict"));
-                int const conflict_max(conflict_tags.size());
-                for(int t(0); t < conflict_max; ++t)
-                {
-                    QDomNode conflict_node(conflict_tags.at(t));
-                    if(conflict_node.isElement())
-                    {
-                        QDomElement conflict(conflict_node.toElement());
-                        wp.add_conflict(conflict.text().toUtf8().data());
-                    }
-                }
-
-                g_packages.push_back(wp);
-            }
-        }
+        return;
     }
+
+    std::string const name(package.get_parameter("name"));
+
+    std::int64_t priority(15);
+    if(package.has_parameter("priority"))
+    {
+        std::string const priority_str(package.get_parameter("priority"));
+        advgetopt::validator_integer(priority_str, priority);
+    }
+
+    watchdog_package_t::installation_t installation(watchdog_package_t::installation_t::PACKAGE_INSTALLATION_OPTIONAL);
+    if(package.has_parameter("intallation"))
+    {
+        installation = watchdog_package_t::installation_from_string(package.get_parameter("installation"));
+    }
+
+    std::string description;
+    if(package.has_parameter("description"))
+    {
+        description = package.get_parameter("description");
+    }
+
+    advgetopt::string_list_t conflicts;
+    if(package.has_parameter("conflicts"))
+    {
+        advgetopt::split_string(
+                  package.get_parameter("conflicts")
+                , conflicts
+                , { "," });
+    }
+
+    watchdog_package_t wp(
+              plugins()->get_server<sitter::server>()
+            , name
+            , installation
+            , priority);
+
+    wp->set_description(description);
+
+    for(auto c : conflicts)
+    {
+        wp->add_conflict(c);
+    }
+
+    g_packages.push_back(wp);
 }
 
 

@@ -33,8 +33,19 @@
 #include    <snaplogger/message.h>
 
 
+// advgetopt
+//
+#include    <advgetopt/validator_integer.h>
+
+
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
 // snapdev
 //
+#include    <snapdev/file_contents.h>
 #include    <snapdev/not_reached.h>
 #include    <snapdev/not_used.h>
 
@@ -55,13 +66,13 @@ namespace sitter
 namespace cpu
 {
 
-CPPTHREAD_PLUGIN_START(cpu, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(cpu, 1, 0)
+    , ::serverplugins::description(
             "Check the CPU load and instant usage.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("packages")
-CPPTHREAD_PLUGIN_END(cpu)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("packages")
+SERVERPLUGINS_END(cpu)
 
 
 
@@ -72,14 +83,10 @@ CPPTHREAD_PLUGIN_END(cpu)
  *
  * This function terminates the initialization of the cpu plugin
  * by registering for different events.
- *
- * \param[in] s  The child handling this request.
  */
-void cpu::bootstrap(void * s)
+void cpu::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    CPPTHREAD_PLUGIN_LISTEN(cpu, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(cpu, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -116,9 +123,6 @@ void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
         double avg5(0.0);
         double avg15(0.0);
         loadavg(&avg1, &avg5, &avg15);
-        e.setAttribute("avg1", QString("%1").arg(avg1));
-        e.setAttribute("avg5", QString("%1").arg(avg5));
-        e.setAttribute("avg15", QString("%1").arg(avg15));
         e["avg1"] = avg1;
         e["avg5"] = avg5;
         e["avg15"] = avg15;
@@ -172,7 +176,7 @@ void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
                         // processors are overloaded on this machine
                         //
                         e["error"] = "High CPU usage";
-                        f_server->append_error(
+                        plugins()->get_server<sitter::server>()->append_error(
                               json
                             , "cpu"
                             , "High CPU usage."

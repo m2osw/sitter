@@ -37,6 +37,11 @@
 #include    <snapdev/not_reached.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -51,13 +56,13 @@ namespace network
 {
 
 
-CPPTHREAD_PLUGIN_START(network, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(network, 1, 0)
+    , ::serverplugins::description(
             "Check that the network is up and running.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("network")
-CPPTHREAD_PLUGIN_END(network)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("network")
+SERVERPLUGINS_END(network)
 
 
 
@@ -67,14 +72,10 @@ CPPTHREAD_PLUGIN_END(network)
  *
  * This function terminates the initialization of the network plugin
  * by registering for different events.
- *
- * \param[in] s  The sitter server.
  */
-void network::bootstrap(void * s)
+void network::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    CPPTHREAD_PLUGIN_LISTEN(network, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(network, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -127,14 +128,16 @@ bool network::find_snapcommunicator(as2js::JSON::JSONValueRef & json)
     //       function returns false; but really for snapcommunicator that
     //       will be an EXTRA ERROR...
 
-    return f_sitter->output_process(json, info, "network");
+    return plugins()->get_server<sitter::server>()->output_process(
+                    "network", json, info, "snapcommunicator", 99);
 }
 
 
 
 bool network::verify_snapcommunicator_connection(as2js::JSON::JSONValueRef & json)
 {
-    if(!f_sitter->get_snapcommunicator_is_connected())
+    sitter::server::pointer_t server(plugins()->get_server<sitter::server>());
+    if(!server->get_snapcommunicator_is_connected())
     {
         // no snapcommunicator process!?
         //
@@ -186,7 +189,7 @@ bool network::verify_snapcommunicator_connection(as2js::JSON::JSONValueRef & jso
         }
         // else use default of 15
 
-        f_sitter->append_error(
+        server->append_error(
                   json
                 , "network"
                 , "found the \"snapcommunicator\" process but somehow sitter is not connected, has not been for "

@@ -39,6 +39,11 @@
 #include    <snapdev/not_used.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -51,13 +56,13 @@ namespace flags
 {
 
 
-CPPTHREAD_PLUGIN_START(flags, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(flags, 1, 0)
+    , ::serverplugins::description(
             "Check raised flags and generate errors accordingly.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("flag")
-CPPTHREAD_PLUGIN_END(flags)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("flag")
+SERVERPLUGINS_END(flags)
 
 
 
@@ -66,14 +71,10 @@ CPPTHREAD_PLUGIN_END(flags)
  *
  * This function terminates the initialization of the flags plugin
  * by registering for different events.
- *
- * \param[in] s  The sitter server.
  */
-void flags::bootstrap(void * s)
+void flags::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    SNAP_LISTEN(flags, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(flags, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -92,13 +93,13 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
     // check whether we have any flags that are currently raised
     // if not, we just return ASAP
     //
-    sitter::flag::vector_t list(sitter::flag::load_flags());
+    sitter::flag::list_t list(sitter::flag::load_flags());
     if(list.empty())
     {
         return;
     }
 
-    as2js::JSON::JSONValueRef & flg(json["flags"]);
+    as2js::JSON::JSONValueRef flg(json["flags"]);
 
     // add each flag to the DOM
     //
@@ -106,27 +107,27 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
     std::string names;
     for(auto f : list)
     {
-        as2js::JSON::JSONValueRef & flag(flg[-1]);
+        as2js::JSON::JSONValueRef e(flg[-1]);
 
         std::string const name(f->get_name());
         int const priority(f->get_priority());
 
-        flag["unit"] =        f->get_unit();
-        flag["section"] =     f->get_section();
-        flag["name"] =        name;
-        flag["priority"] =    priority;
-        flag["manual-down"] = f->get_manual_down();
-        flag["date"] =        f->get_date(); // time_t
-        flag["modified"] =    f->get_modified(); // time_t
-        flag["message"] =     f->get_message();
-        flag["source-file"] = f->get_source_file();
-        flag["function"] =    f->get_function();
-        flag["line"] =        f->get_line();
+        e["unit"] =        f->get_unit();
+        e["section"] =     f->get_section();
+        e["name"] =        name;
+        e["priority"] =    priority;
+        e["manual-down"] = f->get_manual_down();
+        e["date"] =        f->get_date(); // time_t
+        e["modified"] =    f->get_modified(); // time_t
+        e["message"] =     f->get_message();
+        e["source-file"] = f->get_source_file();
+        e["function"] =    f->get_function();
+        e["line"] =        f->get_line();
 
-        snap_flag::tag_list_t const & tag_list(f->get_tags());
+        sitter::flag::tag_list_t const & tag_list(f->get_tags());
         if(!tag_list.empty())
         {
-            as2js::JSON::JSONValueRef & tags(flag["tags"]);
+            as2js::JSON::JSONValueRef tags(flg["tags"]);
             for(auto const & t : tag_list)
             {
                 tags[-1] = t;
@@ -142,7 +143,7 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
         max_priority = std::max(max_priority, priority);
     }
 
-    f_snap->append_error(
+    plugins()->get_server<sitter::server>()->append_error(
               flg
             , "flags"
             , std::to_string(list.size())

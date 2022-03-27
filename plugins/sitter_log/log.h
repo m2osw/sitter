@@ -27,6 +27,9 @@
 #include    <sitter/sitter.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/plugin.h>
 
 
 
@@ -38,19 +41,13 @@ namespace log
 
 
 class log
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        log();
-                        log(log const & rhs) = delete;
-    virtual             ~log() override;
+    SERVERPLUGINS_DEFAULTS(log);
 
-    log &               operator = (log const & rhs) = delete;
-
-    static log *        instance();
-
-    // cppthread::plugin implementation
-    virtual void        bootstrap(void * server) override;
+    // serverplugins::plugin implementation
+    virtual void        bootstrap() override;
 
     // server signal
     void                on_process_watch(as2js::JSON::JSONValueRef & json);
@@ -60,9 +57,8 @@ private:
                               int index
                             , std::string filename
                             , definition const & def
-                            , as2js::JSON::JSONValue & json);
+                            , as2js::JSON::JSONValueRef & json);
 
-    server *            f_server = nullptr;
     bool                f_found = false;
 };
 

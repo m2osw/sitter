@@ -43,6 +43,11 @@
 #include    <snapdev/not_used.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
 // C
 //
 #include    <sys/stat.h>
@@ -59,13 +64,13 @@ namespace sitter
 namespace log
 {
 
-CPPTHREAD_PLUGIN_START(log, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(log, 1, 0)
+    , ::serverplugins::description(
             "Check log files existance, size, ownership, and permissions.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("log")
-CPPTHREAD_PLUGIN_END(log)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("log")
+SERVERPLUGINS_END(log)
 
 
 
@@ -74,14 +79,10 @@ CPPTHREAD_PLUGIN_END(log)
  *
  * This function terminates the initialization of the log plugin
  * by registering for different events.
- *
- * \param[in] snap  The child handling this request.
  */
-void log::bootstrap(void * s)
+void log::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    SNAP_LISTEN(log, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(log, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -89,7 +90,7 @@ void log::bootstrap(void * s)
  *
  * This function runs this watchdog.
  *
- * \param[in] doc  The document.
+ * \param[in] json  The output JSON to save info about the logs.
  */
 void log::on_process_watch(as2js::JSON::JSONValueRef & json)
 {
@@ -99,7 +100,7 @@ void log::on_process_watch(as2js::JSON::JSONValueRef & json)
 
     definition::vector_t log_defs(load());
 
-    as2js::JSON::JSONValueRef logs(json["logs"]);
+    as2js::JSON::JSONValueRef e(json["logs"]);
 
     // check each log
     //
@@ -122,23 +123,27 @@ void log::on_process_watch(as2js::JSON::JSONValueRef & json)
         }
         if(!f_found)
         {
-            QDomElement log_tag(doc.createElement("log"));
-            e.appendChild(log_tag);
+            std::string const err_msg(
+                      "no logs found for "
+                    + def.get_name()
+                    + " which says it is mandatory to have at least one log file");
+            e["error"] = err_msg;
 
-            QString const err_msg(QString("no logs found for %1 which says it is mandatory to have at least one log file")
-                                                .arg(l.get_name()));
-            log_tag.setAttribute("error", err_msg);
-
-            f_snap->append_error(doc
-                               , "log"
-                               , err_msg
-                               , 85); // priority
+            plugins()->get_server<sitter::server>()->append_error(
+                  e
+                , "log"
+                , err_msg
+                , 85); // priority
         }
     }
 }
 
 
-void log::check_log(int index, std::string filename, definition const & def, as2js::JSON::JSONValueRef & json)
+void log::check_log(
+      int index
+    , std::string filename
+    , definition const & def
+    , as2js::JSON::JSONValueRef & json)
 {
     snapdev::NOT_USED(index);
 
@@ -159,26 +164,26 @@ void log::check_log(int index, std::string filename, definition const & def, as2
         l["gid"] = st.st_gid;
         l["mtime"] = st.st_mtime; // we could look into showing the timespec instead?
 
-        if(st.st_size > def.get_max_size())
+        if(static_cast<size_t>(st.st_size) > def.get_max_size())
         {
             // file is too big, generate an error about it!
             //
             std::string const err_msg(
                       "size of log file  "
-                    + l.get_name()
+                    + def.get_name()
                     + " ("
                     + filename
                     + ") is "
                     + std::to_string(st.st_size)
                     + ", which is more than the maximum size of "
                     + std::to_string(def.get_max_size()));
-            log["error"] = err_msg;
+            l["error"] = err_msg;
 
-            f_server->append_error(
+            plugins()->get_server<sitter::server>()->append_error(
                   l
                 , "log"
                 , err_msg
-                , st.st_size > def.get_max_size() * 2 ? 73 : 58); // priority
+                , static_cast<size_t>(st.st_size) > def.get_max_size() * 2 ? 73 : 58); // priority
         }
 
         uid_t const uid(def.get_uid());
@@ -198,7 +203,7 @@ void log::check_log(int index, std::string filename, definition const & def, as2
                     + std::to_string(uid));
             l["error"] = err_msg;
 
-            f_server->append_error(
+            plugins()->get_server<sitter::server>()->append_error(
                   l
                 , "log"
                 , err_msg
@@ -219,10 +224,10 @@ void log::check_log(int index, std::string filename, definition const & def, as2
                     + "), found "
                     + std::to_string(st.st_gid)
                     + " expected "
-                    + std::to_string(gid))
+                    + std::to_string(gid));
             l["error"] = err_msg;
 
-            f_server->append_error(
+            plugins()->get_server<sitter::server>()->append_error(
                   l
                 , "log"
                 , err_msg
@@ -244,10 +249,10 @@ void log::check_log(int index, std::string filename, definition const & def, as2
                     + "), found "
                     + std::to_string(st.st_mode)    // TODO: get octal
                     + " expected "
-                    + std::to_string(mode))    // TODO: get octal
-            log_tag.setAttribute("error", err_msg);
+                    + std::to_string(mode));        // TODO: get octal
+            l["error"] = err_msg;
 
-            f_server->append_error(
+            plugins()->get_server<sitter::server>()->append_error(
                   l
                 , "log"
                 , err_msg
@@ -261,9 +266,6 @@ void log::check_log(int index, std::string filename, definition const & def, as2
         // file does not exist anymore or we have a permission problem?
     }
 }
-
-
-
 
 
 

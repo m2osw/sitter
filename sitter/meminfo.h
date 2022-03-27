@@ -24,7 +24,7 @@
 #include <cstdint>
 
 
-namespace snap
+namespace sitter
 {
 
 // WARNING: we use uint64_t for all the members so that way we simplify
@@ -86,5 +86,5 @@ struct meminfo_t
 meminfo_t get_meminfo();
 
 
-} // snap namespace
+} // namespace sitter
 // vim: ts=4 sw=4 et

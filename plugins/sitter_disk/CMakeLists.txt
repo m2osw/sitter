@@ -16,12 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-project(watchdog_disk)
-
 AtomicNames("names.an")
+
+project(watchdog_disk)
 
 add_library(${PROJECT_NAME} SHARED
     disk.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

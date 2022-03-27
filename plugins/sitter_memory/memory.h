@@ -21,6 +21,11 @@
 #include    "sitter/sitter.h"
 
 
+// serverplugins
+//
+#include    <serverplugins/plugin.h>
+
+
 
 namespace sitter
 {
@@ -30,26 +35,18 @@ namespace memory
 
 
 class memory
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        memory();
-                        memory(memory const & rhs) = delete;
-    virtual             ~memory() override;
+    SERVERPLUGINS_DEFAULTS(memory);
 
-    memory &            operator = (memory const & rhs) = delete;
-
-    static cppthread::plugin::pointer_t
-                        instance();
-
-    // cppthread::plugin implementation
-    virtual void        bootstrap(void * server) override;
+    // serverplugins::plugin implementation
+    virtual void        bootstrap() override;
 
     // server signal
     void                on_process_watch(as2js::JSON::JSONValueRef & json);
 
 private:
-    watchdog_child *    f_snap = nullptr;
 };
 
 

@@ -17,9 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-project(sitter)
-
 AtomicNames(names.an)
+
+project(sitter)
 
 # Put the version in the header file
 configure_file(
@@ -31,6 +31,7 @@ add_library(${PROJECT_NAME} SHARED
     sitter.cpp                            # Implements the core of the watchdog server
 
     flags.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

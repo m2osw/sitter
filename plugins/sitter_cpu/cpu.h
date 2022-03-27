@@ -21,6 +21,11 @@
 #include    "sitter/sitter.h"
 
 
+// serverplugins
+//
+#include    <serverplugins/plugin.h>
+
+
 
 namespace sitter
 {
@@ -30,26 +35,18 @@ namespace cpu
 
 
 class cpu
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        cpu();
-                        cpu(cpu const & rhs) = delete;
-    virtual             ~cpu() override;
+    SERVERPLUGINS_DEFAULTS(cpu);
 
-    cpu &               operator = (cpu const & rhs) = delete;
-
-    static cppthread::plugin::pointer_t
-                        instance();
-
-    // plugins::plugin implementation
-    virtual void        bootstrap(void * s) override;
+    // serverplugins::plugin implementation
+    virtual void        bootstrap() override;
 
     // server signal
     void                on_process_watch(as2js::JSON::JSONValueRef & json);
 
 private:
-    server *            f_server = nullptr;
 };
 
 

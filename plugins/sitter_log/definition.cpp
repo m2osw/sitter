@@ -46,6 +46,11 @@
 #include    <snapdev/trim_string.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
 // C++
 //
 //#include    <functional>

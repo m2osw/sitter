@@ -17,14 +17,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+AtomicNames("names.an")
+
 # Plugin names must use underscores
 project(sitter_packages)
 
-AtomicNames("names.an")
-
 add_library(${PROJECT_NAME} SHARED
     packages.cpp
-    names.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

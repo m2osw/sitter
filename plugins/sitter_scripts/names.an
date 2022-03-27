@@ -1,0 +1,19 @@
+# Names for the Sitter Disk plugin
+
+introducer=name
+project=sitter
+sub_project=scripts
+
+[public]
+log_path="log_path"
+default_log_path="/var/log/sitter/scripts"
+default_log_subfolder="snapwatchdog-output"
+log_subfolder="log_subfolder"
+output="watchdog_watchscripts_output"
+output_default="/var/lib/snapwebsites/snapwatchdog/script-files"
+path="watchdog_watchscripts_path"
+path_default="/usr/share/snapwebsites/snapwatchdog/scripts"
+watch_script_starter="watch_script_starter"
+watch_script_starter_default="/usr/sbin/watch_script_starter"
+
+# vim: syntax=dosini

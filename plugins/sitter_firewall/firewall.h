@@ -22,6 +22,9 @@
 #include    <sitter/sitter.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/plugin.h>
 
 
 
@@ -33,26 +36,18 @@ namespace firewall
 
 
 class firewall
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        firewall();
-                        firewall(firewall const & rhs) = delete;
-    virtual             ~firewall() override;
+    SERVERPLUGINS_DEFAULTS(firewall);
 
-    firewall &          operator = (firewall const & rhs) = delete;
-
-    static cppthread::plugin::pointer_t
-                        instance();
-
-    // cppthread::plugin implementation
-    virtual void        bootstrap(void * server) override;
+    // serverplugins::plugin implementation
+    virtual void        bootstrap() override;
 
     // server signals
     void                on_process_watch(as2js::JSON::JSONValueRef & json);
 
 private:
-    server *            f_server = nullptr;
 };
 
 } // namespace firewall

@@ -21,6 +21,11 @@
 #include    <sitter/sitter.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/plugin.h>
+
+
 
 namespace sitter
 {
@@ -30,26 +35,18 @@ namespace flags
 
 
 class flags
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        flags();
-                        flags(flags const & rhs) = delete;
-    virtual             ~flags() override;
+    SERVERPLUGINS_DEFAULTS(flags);
 
-    flags &             operator = (flags const & rhs) = delete;
-
-    static cppthread::plugin::pointer_t
-                        instance();
-
-    // plugins::plugin implementation
-    virtual void        bootstrap(void * s) override;
+    // serverplugins::plugin implementation
+    virtual void        bootstrap() override;
 
     // server signal
     void                on_process_watch(as2js::JSON::JSONValueRef & json);
 
 private:
-    server *            f_server = nullptr;
 };
 
 

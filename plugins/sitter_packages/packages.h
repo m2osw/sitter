@@ -21,6 +21,11 @@
 #include    <sitter/sitter.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/plugin.h>
+
+
 
 namespace sitter
 {
@@ -30,20 +35,13 @@ namespace packages
 
 
 class packages
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        packages();
-                        packages(packages const & rhs) = delete;
-    virtual             ~packages() override;
-
-    packages &          operator = (packages const & rhs) = delete;
-
-    static cppthread::plugin::pointer_t
-                        instance();
+    SERVERPLUGINS_DEFAULTS(packages);
 
     // plugins::plugin implementation
-    virtual void        bootstrap(void * sitter) override;
+    virtual void        bootstrap() override;
 
     // server signals
     void                on_process_watch(as2js::JSON::JSONValueRef & json);
@@ -51,8 +49,6 @@ public:
 private:
     void                load_packages();
     void                load_json(std::string package_filename);
-
-    server *            f_serve = nullptr;
 };
 
 

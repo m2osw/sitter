@@ -19,7 +19,10 @@
 //
 #include    "memory.h"
 
-#include    "sitter/meminfo.h"
+
+// sitter
+//
+#include    <sitter/meminfo.h>
 
 
 // snaplogger
@@ -31,6 +34,11 @@
 //
 #include    <snapdev/not_reached.h>
 #include    <snapdev/not_used.h>
+
+
+// serverplugins
+//
+#include    <serverplugins/collection.h>
 
 
 // last include
@@ -45,13 +53,13 @@ namespace memory
 {
 
 
-CPPTHREAD_PLUGIN_START(memory, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(memory, 1, 0)
+    , ::serverplugins::description(
             "Check current memory usage.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("memory")
-CPPTHREAD_PLUGIN_END(memory)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("memory")
+SERVERPLUGINS_END(memory)
 
 
 
@@ -60,14 +68,10 @@ CPPTHREAD_PLUGIN_END(memory)
  *
  * This function terminates the initialization of the memory plugin
  * by registering for different events.
- *
- * \param[in] s  The server.
  */
-void memory::bootstrap(void * s)
+void memory::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    SNAP_LISTEN(memory, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(memory, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -87,7 +91,7 @@ void memory::on_process_watch(as2js::JSON::JSONValueRef & json)
 
     // read "/proc/meminfo"
     //
-    meminfo_t const info(get_meminfo());
+    sitter::meminfo_t const info(get_meminfo());
 
     // simple memory data should always be available
     e["mem_total"] =     info.f_mem_total;
@@ -119,7 +123,7 @@ void memory::on_process_watch(as2js::JSON::JSONValueRef & json)
     if(high_memory_usage)
     {
         e["error"] = "High memory usage";
-        f_server->append_error(
+        plugins()->get_server<sitter::server>()->append_error(
               e
             , "memory"
             , "High memory usage"
@@ -137,7 +141,7 @@ void memory::on_process_watch(as2js::JSON::JSONValueRef & json)
     if(high_swap_usage)
     {
         e["error"] = "High swap usage";
-        f_server->append_error(
+        plugins()->get_server<sitter::server>()->append_error(
               e
             , "memory"
             , "High swap usage"

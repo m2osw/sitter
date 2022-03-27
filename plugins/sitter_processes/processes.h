@@ -21,6 +21,9 @@
 #include    "sitter/sitter.h"
 
 
+// serverplugins
+//
+#include    <serverplugins/plugin.h>
 
 
 
@@ -32,26 +35,18 @@ namespace processes
 
 
 class processes
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        processes();
-                        processes(processes const & rhs) = delete;
-    virtual             ~processes() override;
+    SERVERPLUGINS_DEFAULTS(processes);
 
-    processes &         operator = (processes const & rhs) = delete;
-
-    static cppthread::plugin::pointer_t
-                        instance();
-
-    // cppthread::plugin implementation
-    virtual void        bootstrap(void * server) override;
+    // serverplugins::plugin implementation
+    virtual void        bootstrap() override;
 
     // server signals
     void                on_process_watch(as2js::JSON::JSONValueRef & json);
 
 private:
-    server *            f_server = nullptr;
 };
 
 } // namespace processes

@@ -24,9 +24,9 @@
 #include    "sitter/sitter.h"
 
 
-// cppprocess
+// serverplugins
 //
-//#include    <cppprocess/process.h>
+#include    <serverplugins/plugin.h>
 
 
 
@@ -57,20 +57,13 @@ namespace scripts
 
 
 class scripts
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                            scripts();
-                            scripts(scripts const & rhs) = delete;
-    virtual                 ~scripts() override;
+    SERVERPLUGINS_DEFAULTS(scripts);
 
-    scripts &               operator = (scripts const & rhs) = delete;
-
-    static cppthread::plugin::pointer_t
-                            instance();
-
-    // cppthread::plugin implementation
-    virtual void            bootstrap(void * snap) override;
+    // serverplugins::plugin implementation
+    virtual void            bootstrap() override;
 
     // server signals
     void                    on_process_watch(as2js::JSON::JSONValueRef & json);
@@ -80,9 +73,10 @@ private:
     static std::string      format_date(time_t const t);
     std::string             generate_header(std::string const & type);
 
-    server *                f_server = nullptr;
     as2js::JSON::JSONValueRef
-                            f_scripts = as2js::JSON::JSONValueRef();
+                            f_scripts = as2js::JSON::JSONValueRef(
+                                          as2js::JSON::JSONValue::pointer_t()
+                                        , as2js::String());
     bool                    f_new_output_script = false;
     bool                    f_new_error_script = false;
     char                    f_last_output_byte = '\n';

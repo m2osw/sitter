@@ -33,6 +33,16 @@
 #include    <snapdev/not_used.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
+// C++
+//
+#include    <regex>
+
+
 // C
 //
 #include    <signal.h>
@@ -50,15 +60,13 @@ namespace sitter
 namespace disk
 {
 
-CPPTHREAD_PLUGIN_START(disk, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(disk, 1, 0)
+    , ::serverplugins::description(
             "Check disk space of all mounted drives.")
-    , ::cppthread::plugin_icon()
-    , ::cppthread::plugin_settings()
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("disk")
-CPPTHREAD_PLUGIN_END(disk)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("disk")
+SERVERPLUGINS_END(disk)
 
 
 
@@ -202,14 +210,10 @@ int statvfs_try(char const * path, struct statvfs * s, unsigned int seconds)
  *
  * This function terminates the initialization of the disk plugin
  * by registering for different events.
- *
- * \param[in] s  The child handling this request.
  */
-void disk::bootstrap(void * s)
+void disk::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    SNAP_LISTEN(disk, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(disk, "server", server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -225,13 +229,13 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
         << "disk::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    as2js::JSON::JSONValueRef & e(json["disk"]);
+    as2js::JSON::JSONValueRef e(json["disk"]);
 
     // read the various mounts on this server
     //
     // TBD: instead of all mounts, we may want to look into definitions
     //      in our configuration file?
-    mounts m("/proc/mounts");
+    snapdev::mounts m("/proc/mounts");
 
     // check each disk
     size_t const max_mounts(m.size());
@@ -246,11 +250,12 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
             //
             if(s.f_blocks != 0)
             {
-                as2js::JSON::JSONValueRef & p["partition"][-1];
+                as2js::JSON::JSONValueRef p(e["partition"][-1]);
 
                 // directory where this partition is attached
                 //
-                p["dir"] = m[idx].get_dir();
+                std::string dir(m[idx].get_dir());
+                p["dir"] = dir;
 
                 // we do not expect to get a server with blocks of 512 bytes
                 // otherwise the following lose one bit of precision...
@@ -281,14 +286,14 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
                             , [dir](auto pattern)
                             {
                                 std::regex const pat(pattern);
-                                return std::regex_match(dir, pat, std::match_any);
+                                return std::regex_match(dir, pat, std::regex_constants::match_any);
                             }));
                     if(it1 == g_ignore_filled_partitions.end())
                     {
                         // the user can also define a list of regex which
                         // we test now to ignore further partitions
                         //
-                        std::string const disk_ignore(f_server->get_server_parameter(g_name_disk_ignore));
+                        std::string const disk_ignore(plugins()->get_server<sitter::server>()->get_server_parameter(g_name_disk_ignore));
                         advgetopt::string_list_t const disk_ignore_patterns;
                         advgetopt::split_string(disk_ignore, disk_ignore_patterns, { ":" });
                         auto it2(std::find_if(
@@ -297,7 +302,7 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
                                 , [dir](auto pattern)
                                 {
                                     std::regex const pat(pattern);
-                                    return std::regex_match(dir, pat, std::match_any);
+                                    return std::regex_match(dir, pat, std::regex_constants::match_any);
                                 }));
                         if(it2 == disk_ignore_patterns.end())
                         {

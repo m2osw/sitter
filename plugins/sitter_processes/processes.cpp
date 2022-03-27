@@ -41,6 +41,16 @@
 #include    <snapdev/not_used.h>
 
 
+// serverplugins
+//
+#include    <serverplugins/collection.h>
+
+
+// C++
+//
+#include    <regex>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -52,13 +62,13 @@ namespace sitter
 namespace processes
 {
 
-CPPTHREAD_PLUGIN_START(processes, 1, 0)
-    , ::cppthread::plugin_description(
+SERVERPLUGINS_START(processes, 1, 0)
+    , ::serverplugins::description(
             "Check whether a set of processes are running.")
-    , ::cppthread::plugin_dependency("server")
-    , ::cppthread::plugin_help_uri("https://snapwebsites.org/help")
-    , ::cppthread::plugin_categorization_tag("process")
-CPPTHREAD_PLUGIN_END(processes)
+    , ::serverplugins::dependency("server")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("process")
+SERVERPLUGINS_END(processes)
 
 
 
@@ -96,7 +106,7 @@ char const * g_configuration_apache2_maintenance = "/etc/apache2/snap-conf/snap-
  *
  * \return true if the service is marked as enabled.
  */
-bool is_service_enabled(QString const & service_name)
+bool is_service_enabled(std::string const & service_name)
 {
     // here I use the `show` command instead of the `is-enabled` to avoid
     // errors whenever the service is not even installed, which can happen
@@ -109,7 +119,7 @@ bool is_service_enabled(QString const & service_name)
     p.add_argument("-p");
     p.add_argument("UnitFileState");
     p.add_argument("--value"); // available since systemd 230, so since Ubuntu 18.04
-    p.add_argument(service_name.toUtf8().data());
+    p.add_argument(service_name);
     cppprocess::io_capture_pipe::pointer_t out(std::make_shared<cppprocess::io_capture_pipe>());
     p.set_output_io(out);
     int r(p.start());
@@ -252,20 +262,29 @@ bool is_in_maintenance()
 
 /** \brief Class used to read the list of processes to check.
  *
- * The class understands the following XML format:
+ * This class holds the configuration for one process.
+ *
+ * The class understands the following configuration format:
  *
  * \code
- * <watchdog-processes>
- *   <process name="name" mandatory="mandatory" allow_duplicates="allow_duplicates">
- *      <command>...</command>
- *      <match>...</match>
- *   </process>
- *   <process name="..." ...>
- *      ...
- *   </process>
- *   ...
- * </watchdog-processes>
+ *     name=<process name>
+ *     mandatory=<true | false>
+ *     allow_duplicates=<true | false>
+ *     command=<command path>
+ *     service=<name>
+ *     backend=<true | false>
+ *     match=<regex>
  * \endcode
+ *
+ * Create additional configuration files to define additional processes.
+ *
+ * The `service=...` means that we have a `<project>.service`. That service
+ * is then expected to be up and running.
+ *
+ * The `backend` boolean flag is used to define whether the `service=...`
+ * is a backend or not. If not, then the backend status is ignored. If it
+ * is, then if backends are currently turned off (inactive) then an inactive
+ * state for that service is expected and not viewed as an error.
  */
 class sitter_process
 {
@@ -289,9 +308,9 @@ public:
 private:
     static advgetopt::string_list_t g_valid_backends;
 
-    std::string                 f_name = QString();
-    std::string                 f_command = QString();
-    std::string                 f_service = QString();
+    std::string                 f_name = std::string();
+    std::string                 f_command = std::string();
+    std::string                 f_service = std::string();
     std::regex                  f_match = std::regex();
     bool                        f_mandatory = false;
     bool                        f_allow_duplicates = false;
@@ -528,7 +547,7 @@ bool sitter_process::is_process_expected_to_run()
     {
         // all the backend get disabled whenever the administrator sets
         // the "backend_status" flag to "disabled", this is global to all
-        // the computer of a cluster (at least it is expected to be that way)
+        // the computers of a cluster (at least it is expected to be that way)
         //
         // whatever other status does not matter if this flag is set to
         // disabled then the backed is not expected to be running
@@ -659,112 +678,91 @@ bool sitter_process::match(std::string const & command, std::string const & cmdl
 }
 
 
-/** \brief Load a process XML file.
+/** \brief Load a process configuration file.
  *
- * This function loads one XML file and transform it in a
+ * This function loads one configuration file and transform it in a
  * sitter_process object.
  *
- * \param[in] processes_filename  The name of an XML file representing processes.
+ * \param[in] processes_filename  The name of a configuration file
+ * representing one process.
  */
-void load_conf(int index, std::string processes_filename)
+void load_process(int index, std::string processes_filename)
 {
     snapdev::NOT_USED(index);
 
-    QFile input(QString::fromUtf8(processes_filename.c_str()));
-    if(input.open(QIODevice::ReadOnly))
+    advgetopt::conf_file_setup setup(processes_filename);
+    advgetopt::conf_file::pointer_t process(advgetopt::conf_file::get_conf_file(setup));
+
+    if(!process.has_parameter("name"))
     {
-        QDomDocument doc;
-        if(doc.setContent(&input, false)) // TODO: add error handling for debug
-        {
-            // we got the XML loaded
-            //
-            QDomNodeList processes(doc.elementsByTagName("process"));
-            int const max(processes.size());
-            for(int idx(0); idx < max; ++idx)
-            {
-                QDomNode p(processes.at(idx));
-                if(!p.isElement())
-                {
-                    continue;
-                }
-                QDomElement process(p.toElement());
-                QString const name(process.attribute("name"));
-                if(name.isEmpty())
-                {
-                    throw invalid_name("the name of a process cannot be the empty string");
-                }
-
-                bool const mandatory(process.hasAttribute("mandatory"));
-                bool const allow_duplicates(process.hasAttribute("allow_duplicates"));
-
-                auto it(std::find_if(
-                          g_processes.begin()
-                        , g_processes.end()
-                        , [name, allow_duplicates](auto & wprocess)
-                        {
-                            if(name == wprocess.get_name())
-                            {
-                                if(!allow_duplicates
-                                || !wprocess.allow_duplicates())
-                                {
-                                    throw invalid_name("found process \"" + name + "\" twice and duplicates are not allowed.");
-                                }
-                                return true;
-                            }
-                            return false;
-                        }));
-                if(it != g_processes.end())
-                {
-                    // skip the duplicate, we assume that the command,
-                    // match, etc. are identical enough for the system
-                    // to still work as expected
-                    //
-                    if(mandatory)
-                    {
-                        it->set_mandatory(true);
-                    }
-                    continue;
-                }
-
-                sitter_process wp(name, mandatory, allow_duplicates);
-
-                QDomNodeList command_tags(process.elementsByTagName("command"));
-                if(command_tags.size() > 0)
-                {
-                    QDomNode command_node(command_tags.at(0));
-                    if(command_node.isElement())
-                    {
-                        QDomElement command(command_node.toElement());
-                        wp.set_command(command.text());
-                    }
-                }
-
-                QDomNodeList service_tags(process.elementsByTagName("service"));
-                if(service_tags.size() > 0)
-                {
-                    QDomNode service_node(service_tags.at(0));
-                    if(service_node.isElement())
-                    {
-                        QDomElement service(service_node.toElement());
-                        wp.set_service(service.text(), service.hasAttribute("backend"));
-                    }
-                }
-
-                QDomNodeList match_tags(process.elementsByTagName("match"));
-                if(match_tags.size() > 0)
-                {
-                    QDomNode match_node(match_tags.at(0));
-                    if(match_node.isElement())
-                    {
-                        QDomElement match(match_node.toElement());
-                        wp.set_match(match.text());
-                    }
-                }
-
-                g_processes.push_back(wp);
-            }
-        }
+        return;
     }
+    std::string const name(process.get_parameter("name"));
+
+    bool mandatory(false);
+    if(process.has_parameter("mandatory"))
+    {
+        mandatory = advgetopt::is_true(process_get_parameter("mandatory"));
+    }
+
+    bool allow_duplicates(false);
+    if(process.has_parameter("allow_duplicates"))
+    {
+        allow_duplicates = advgetopt::is_true(process_get_parameter("allow_duplicates"));
+    }
+
+    auto it(std::find_if(
+              g_processes.begin()
+            , g_processes.end()
+            , [name, allow_duplicates](auto & wprocess)
+            {
+                if(name == wprocess.get_name())
+                {
+                    if(!allow_duplicates
+                    || !wprocess.allow_duplicates())
+                    {
+                        throw invalid_name("found process \"" + name + "\" twice and duplicates are not allowed.");
+                    }
+                    return true;
+                }
+                return false;
+            }));
+    if(it != g_processes.end())
+    {
+        // skip the duplicate, we assume that the command,
+        // match, etc. are identical enough for the system
+        // to still work as expected
+        //
+        if(mandatory)
+        {
+            it->set_mandatory(true);
+        }
+        return;
+    }
+
+    sitter_process wp(name, mandatory, allow_duplicates);
+
+    if(process.has_parameter("command"))
+    {
+        wp->set_command(process.get_parameter("command"));
+    }
+
+    if(process.has_parameter("service"))
+    {
+        bool backend(false);
+        if(process.has_parameter("backend"))
+        {
+            backend = advgetopt::is_true(process_get_parameter("backend"));
+        }
+        wp->set_service(process.get_parameter("service"), backend);
+    }
+
+    if(process.has_parameter("match"))
+    {
+        wp->set_match(process.get_parameter("match"));
+    }
+
+    g_processes.push_back(wp);
 }
 
 
@@ -790,7 +788,7 @@ void load_processes(std::string processes_path)
     script_filenames.read_path<
           snapdev::glob_to_list_flag_t::GLOB_FLAG_NO_ESCAPE
         , snapdev::glob_to_list_flag_t::GLOB_FLAG_IGNORE_ERRORS>(processes_path + "/*.conf");
-    snapdev::enumerate(script_filenames, std::bind(&load_conf, std::placeholders::_1, std::placeholders::_2));
+    snapdev::enumerate(script_filenames, std::bind(&load_process, std::placeholders::_1, std::placeholders::_2));
 }
 
 
@@ -805,14 +803,10 @@ void load_processes(std::string processes_path)
  *
  * This function terminates the initialization of the processes plugin
  * by registering for various events.
- *
- * \param[in] s  The child handling this request.
  */
-void processes::bootstrap(void * s)
+void processes::bootstrap()
 {
-    f_server = static_cast<server *>(s);
-
-    SNAP_LISTEN(processes, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(processes, "server", server, process_watch, boost::placeholders::_1);
 }
 
 

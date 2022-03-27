@@ -25,7 +25,6 @@
 
 // C++
 //
-//#include    <list>
 #include    <memory>
 #include    <set>
 

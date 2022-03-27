@@ -21,9 +21,9 @@
 #include    <sitter/sitter.h>
 
 
-// cppthread
+// serverplugins
 //
-//#include    <cppthread/plugins.h>
+#include    <serverplugins/plugin.h>
 
 
 
@@ -35,26 +35,18 @@ namespace disk
 
 
 class disk
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        disk();
-                        disk(disk const & rhs) = delete;
-    virtual             ~disk() override;
+    SERVERPLUGINS_DEFAULTS(disk);
 
-    disk &              operator = (disk const & rhs) = delete;
-
-    static cppthread::plugin::pointer_t
-                        instance();
-
-    // plugins::plugin implementation
-    virtual void        bootstrap(void * s) override;
+    // serverplugins::plugin implementation
+    virtual void        bootstrap() override;
 
     // server signal
     void                on_process_watch(as2js::JSON::JSONValueRef & json);
 
 private:
-    server *            f_server = nullptr;
 };
 
 

@@ -22,9 +22,9 @@
 #include    "sitter/sitter.h"
 
 
-// cppthread
+// serverplugins
 //
-//#include    <cppthread/plugins.h>
+#include    <serverplugins/plugin.h>
 
 
 
@@ -36,25 +36,18 @@ namespace apt
 
 
 class apt
-    : public cppthread::plugin
+    : public serverplugins::plugin
 {
 public:
-                        apt();
-                        apt(apt const & rhs) = delete;
-    virtual             ~apt() override;
+    SERVERPLUGINS_DEFAULTS(apt);
 
-    apt &               operator = (apt const & rhs) = delete;
-
-    static apt *        instance();
-
-    // cppthread::plugin implementation
-    virtual void        bootstrap(void * server) override;
+    // serverplugins::plugin implementation
+    virtual void        bootstrap() override;
 
     // server signal
-    void                on_process_watch(as2js::JSON & json);
+    void                on_process_watch(as2js::JSON::JSONValueRef & json);
 
 private:
-    server *            f_server = nullptr;
 };
 
 
