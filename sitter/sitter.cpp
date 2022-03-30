@@ -22,6 +22,8 @@
 //
 #include    "sitter/sitter.h"
 
+#include    "sitter/exception.h"
+#include    "sitter/names.h"
 #include    "sitter/version.h"
 
 
@@ -34,6 +36,14 @@
 //
 #include    <snaplogger/logger.h>
 #include    <snaplogger/message.h>
+#include    <snaplogger/options.h>
+
+
+// advgetopt
+//
+#include    <advgetopt/conf_file.h>
+#include    <advgetopt/exception.h>
+#include    <advgetopt/validator_integer.h>
 
 
 // libaddr
@@ -49,9 +59,12 @@
 
 // snapdev
 //
+#include    <snapdev/file_contents.h>
+#include    <snapdev/gethostname.h>
 #include    <snapdev/mkdir_p.h>
 #include    <snapdev/not_reached.h>
 #include    <snapdev/not_used.h>
+#include    <snapdev/string_replace_many.h>
 
 
 // C++
@@ -94,21 +107,28 @@
  */
 
 
-namespace snap
+namespace sitter
 {
-
-// definitions from the plugins so we can define the name and filename of
-// the server plugin
-namespace plugins
-{
-extern std::string g_next_register_name;
-extern std::string g_next_register_filename;
-}
 
 
 namespace
 {
 
+
+/** \brief The sitter server.
+ *
+ * This variable holds the server. The server::instance() function returns
+ * the pointer. However, it does not allocate it. The main.cpp of the daemon
+ * implementation allocates the server passing the argc/argv parameters and
+ * then it saves it using the set_instance() function.
+ *
+ * At this point, this pointer never gets reset.
+ *
+ * \note
+ * Having an instance() function is a requirement of the serverplugins
+ * implementation.
+ */
+server::pointer_t               g_server;
 
 
 /** \brief The snap communicator singleton.
@@ -116,7 +136,19 @@ namespace
  * This variable holds a copy of the snap communicator singleton.
  * It is a null pointer until the watchdog() function is called.
  */
-ed::communicator::pointer_t g_communicator;
+ed::communicator::pointer_t     g_communicator;
+
+
+/** \brief The gathering of data uses a thread now.
+ *
+ * In the first version, we used a fork() and loaded the plugins in the
+ * child process.
+ *
+ * In the new version, we start a thread early one, load the plugins once,
+ * and then sleep until we get a tick. The process runs until the service
+ * quits.
+ */
+cppthread::thread::pointer_t    g_worker_thread;
 
 
 
@@ -149,21 +181,21 @@ advgetopt::option const g_command_line_options[] =
         , advgetopt::Help("colon separated regular expressions defining paths to ignored when checking disks.")
     ),
     advgetopt::define_option(
-          advgetopt::Name("error-report-critical-priorty")
+          advgetopt::Name("error-report-critical-priority")
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("90,86400")
         , advgetopt::Help("the critical priority a message has to trigger an email after the specified period (priority and period are separated by a comma).")
     ),
     advgetopt::define_option(
-          advgetopt::Name("error-report-low-priorty")
+          advgetopt::Name("error-report-low-priority")
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("10,604800")
         , advgetopt::Help("the minimum priority a message has to trigger an email after the specified period (priority and period are separated by a comma).")
     ),
     advgetopt::define_option(
-          advgetopt::Name("error-report-medium-priorty")
+          advgetopt::Name("error-report-medium-priority")
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("50,259200")
@@ -221,7 +253,7 @@ advgetopt::option const g_command_line_options[] =
           advgetopt::Name("user-group")
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("snapwebsites:snapwebsites")  // TODO: change to sitter:sitter?
+        , advgetopt::DefaultValue("sitter:sitter")
         , advgetopt::Help("the name of a user and a group, separated by a colon, to use for the statistics and other journal files.")
     ),
     advgetopt::end_options()
@@ -273,14 +305,14 @@ class interrupt
 public:
     typedef std::shared_ptr<interrupt>     pointer_t;
 
-                        interrupt(server::pointer_t ws);
+                        interrupt(server::pointer_t s);
     virtual             ~interrupt() override {}
 
     // ed::connection implementation
     virtual void        process_signal() override;
 
 private:
-    server::pointer_t  f_watchdog_server;
+    server::pointer_t  f_server = server::pointer_t();
 };
 
 
@@ -301,12 +333,12 @@ interrupt::pointer_t             g_interrupt;
  *
  * \param[in] ws  The server we are listening for.
  */
-interrupt::interrupt(server::pointer_t ws)
+interrupt::interrupt(server::pointer_t s)
     : signal(SIGINT)
-    , f_watchdog_server(ws)
+    , f_server(s)
 {
     unblock_signal_on_destruction();
-    set_name("watchdog interrupt");
+    set_name("interrupt");
 }
 
 
@@ -319,96 +351,11 @@ void interrupt::process_signal()
 {
     // we simulate the STOP, so pass 'false' (i.e. not quitting)
     //
-    f_watchdog_server->stop(false);
+    f_server->stop(false);
 }
 
 
 
-/** \brief Timer to poll Cassandra's availability.
- *
- * This class is specifically used to pretend that we received a
- * CASSANDRAREADY even when not sent to us. This is because when
- * we check for the availability of Cassandra, it may not have the
- * context and tables available yet. In that case, we would just
- * fall asleep and do nothing more.
- *
- * This timer allows us to re-check for the Cassandra context and
- * mandatory table as expected on a CASSANDRAREADY message.
- */
-class cassandra_check_timer
-    : public ed::timer
-{
-public:
-    typedef std::shared_ptr<cassandra_check_timer>  pointer_t;
-
-                            cassandra_check_timer(server::pointer_t ws);
-    virtual                 ~cassandra_check_timer() override {}
-
-    // snap_communicator::snap_connection implementation
-    virtual void            process_timeout() override;
-
-private:
-    // TBD: should this be a weak pointer?
-    server::pointer_t  f_watchdog_server;
-};
-
-
-/** \brief The tick timer.
- *
- * We create one tick timer. It is saved in this variable if needed.
- */
-cassandra_check_timer::pointer_t    g_cassandra_check_timer;
-
-
-/** \brief Initialize the timer as required.
- *
- * This disables the timer and sets up its ticks to send us a timeout
- * event once per minute.
- *
- * So by default this timer does nothing (since it is disabled).
- *
- * If the check_cassandra() function somehow fails in a way that means
- * we would never get awaken again, then this timer gets turned on.
- * It will be awaken be a timeout and send us a CASSANDRAREADY to
- * simulate that something happened and we better recheck whether
- * the Cassandra connection is now truly available.
- *
- * \param[in] s  The server pointer.
- */
-cassandra_check_timer::cassandra_check_timer(server::pointer_t ws)
-    : ed::timer(60LL * 1'000'000LL)
-    , f_server(ws)
-{
-    set_name("cassandra check timer");
-    set_enable(false);
-}
-
-
-/** \brief The timer ticked.
- *
- * This function gets called each time the timer ticks. This is once
- * per minute for this timer (see constructor).
- *
- * The timer is turned off (disabled) by default. It is used only if
- * there is an error while trying to get the snap_websites context or a
- * mandatory table.
- *
- * The function simulate a CASSANDRAREADY message as if the snapdbproxy
- * service had sent it to us.
- */
-void cassandra_check_timer::process_timeout()
-{
-    // disable ourselves, if the Cassandra cluster is still not ready,
-    // then we will automatically be re-enabled
-    //
-    set_enable(false);
-
-    // simulate a CASSANDRAREADY message
-    //
-    ed::message cassandra_ready;
-    cassandra_ready.set_command("CASSANDRAREADY");
-    f_watchdog_server->dispatch(cassandra_ready);
-}
 
 
 
@@ -426,14 +373,14 @@ class tick_timer
 public:
     typedef std::shared_ptr<tick_timer>        pointer_t;
 
-                                tick_timer( server::pointer_t ws, int64_t interval );
+                                tick_timer(server::pointer_t s, int64_t interval);
     virtual                     ~tick_timer() override {}
 
     // snap::snap_communicator::snap_timer implementation
     virtual void                process_timeout() override;
 
 private:
-    server::pointer_t  f_watchdog_server;
+    server::pointer_t           f_server = server::pointer_t();
 };
 
 
@@ -452,13 +399,14 @@ tick_timer::pointer_t             g_tick_timer;
  * The timer is setup to trigger immediately after creation.
  * This is what starts the snap backend process.
  *
- * \param[in] sb  A pointer to the snap_backend object.
+ * \param[in] s  A pointer to the snap_backend object.
+ * \param[in] interval  The amount to wait between ticks.
  */
-tick_timer::tick_timer(server::pointer_t ws, int64_t interval)
+tick_timer::tick_timer(server::pointer_t s, int64_t interval)
     : timer(interval)
-    , f_watchdog_server(ws)
+    , f_server(s)
 {
-    set_name("server tick_timer");
+    set_name("tick_timer");
 
     // start right away, but we do not want to use snap_timer(0)
     // because otherwise we will not get ongoing ticks as expected
@@ -475,7 +423,7 @@ tick_timer::tick_timer(server::pointer_t ws, int64_t interval)
  */
 void tick_timer::process_timeout()
 {
-    f_watchdog_server->process_tick();
+    f_server->process_tick();
 }
 
 
@@ -493,17 +441,16 @@ class messenger
 public:
     typedef std::shared_ptr<messenger>    pointer_t;
 
-                                messenger(server::pointer_t ws, addr::addr const & a);
+                                messenger(server::pointer_t s, addr::addr const & a);
     virtual                     ~messenger() override {}
 
     // snap::snap_communicator::snap_tcp_client_permanent_message_connection implementation
-    //virtual void                process_message(snap::snap_communicator_message const & message) override; //-- we set the dispatcher on this one too
     virtual void                process_connection_failed(std::string const & error_message) override;
     virtual void                process_connected() override;
 
 private:
     // this is owned by a server function so no need for a smart pointer
-    server::pointer_t  f_watchdog_server;
+    server::pointer_t           f_server = server::pointer_t();
 };
 
 
@@ -524,18 +471,18 @@ messenger::pointer_t             g_messenger;
  * We use a permanent connection so if the snapcommunicator restarts
  * for whatever reason, we reconnect automatically.
  *
- * \param[in] ws  The snap watchdog server we are listening for.
+ * \param[in] s  The snap watchdog server we are listening for.
  * \param[in] a  The address to connect to. Most often it is 127.0.0.1:4040.
  */
-messenger::messenger(server::pointer_t ws, addr::addr const & a)
+messenger::messenger(server::pointer_t s, addr::addr const & a)
     : tcp_client_permanent_message_connection(
-                a,
-                ed::tcp_bio_client::mode_t::MODE_PLAIN,
-                ed::tcp_client_permanent_message_connection::DEFAULT_PAUSE_BEFORE_RECONNECTING,
-                false) // do not use a separate thread, we do many fork()'s
-    , f_watchdog_server(ws)
+              a
+            , ed::tcp_bio_client::mode_t::MODE_PLAIN
+            , ed::tcp_client_permanent_message_connection::DEFAULT_PAUSE_BEFORE_RECONNECTING
+            , false) // do not use a separate thread, we do many fork()'s
+    , f_server(s)
 {
-    set_name("server messenger");
+    set_name("messenger");
 }
 
 
@@ -562,7 +509,7 @@ void messenger::process_connection_failed(std::string const & error_message)
 
     // also call the default function, just in case
     tcp_client_permanent_message_connection::process_connection_failed(error_message);
-    f_watchdog_server->set_snapcommunicator_connected(false);
+    f_server->set_snapcommunicator_connected(false);
 }
 
 
@@ -580,72 +527,15 @@ void messenger::process_connected()
 
     ed::message register_backend;
     register_backend.set_command("REGISTER");
-    register_backend.add_parameter("service", "snapwatchdog");
+    register_backend.add_parameter("service", "sitter");
     register_backend.add_version_parameter();
     send_message(register_backend);
-    f_watchdog_server->set_snapcommunicator_connected(true);
+    f_server->set_snapcommunicator_connected(true);
 }
 
 
 
 
-/** \brief Handle the death of a child process.
- *
- * This class is an implementation of the snap signal connection so we can
- * get an event whenever our child dies.
- */
-class sigchld_connection
-    : public ed::signal
-{
-public:
-    typedef std::shared_ptr<sigchld_connection>    pointer_t;
-
-                                sigchld_connection(server::pointer_t ws);
-    virtual                     ~sigchld_connection() override {}
-
-    // snap::snap_communicator::snap_signal implementation
-    virtual void                process_signal() override;
-
-private:
-    // this is owned by a server function so no need for a smart pointer
-    server::pointer_t  f_watchdog_server;
-};
-
-
-/** \brief A pointer to the child signal connection.
- *
- * When adding connections we include this one so we can capture the
- * death of the child we create to run the statistic gathering using
- * plugins.
- */
-sigchld_connection::pointer_t       g_sigchld_connection;
-
-
-/** \brief The SIGCHLD signal initialization.
- *
- * The constructor defines this signal connection as a listener for
- * the SIGCHLD signal.
- *
- * \param[in] ws  The watchdog server we are listening for.
- */
-sigchld_connection::sigchld_connection(server::pointer_t ws)
-    : signal(SIGCHLD)
-    , f_watchdog_server(ws)
-{
-    set_name("snapwatchdog sigchld");
-}
-
-
-/** \brief Process the child death signal.
- *
- * The server process received a SIGCHLD. We can call the
- * process_sigchld() function of the server object.
- */
-void sigchld_connection::process_signal()
-{
-    // we can call the same function
-    f_watchdog_server->process_sigchld();
-}
 
 
 
@@ -655,16 +545,8 @@ void sigchld_connection::process_signal()
  * The following table defines the commands understood by snapwatchdog
  * that are not defined as a default by add_snap_communicator_commands().
  */
-ed::dispatcher<server>::dispatcher_match::vector_t const g_snapwatchdog_service_messages =
+ed::dispatcher<server>::dispatcher_match::vector_t const g_sitter_service_messages =
 {
-    {
-        "CASSANDRAREADY"
-      , &server::msg_cassandraready
-    },
-    {
-        "NOCASSANDRA"
-      , &server::msg_nocassandra
-    },
     {
         "RELOADCONFIG"
       , &server::msg_reload_config
@@ -679,96 +561,17 @@ ed::dispatcher<server>::dispatcher_match::vector_t const g_snapwatchdog_service_
 } // no name namespace
 
 
-namespace watchdog
-{
-
-///** \brief Get a fixed watchdog plugin name.
-// *
-// * The watchdog plugin makes use of different fixed names. This function
-// * ensures that you always get the right spelling for a given name.
-// *
-// * \param[in] name  The name to retrieve.
-// *
-// * \return A pointer to the name.
-// */
-//char const * get_name(name_t name)
-//{
-//    switch(name)
-//    {
-//    case name_t::SNAP_NAME_WATCHDOG_ADMINISTRATOR_EMAIL:
-//        return "administrator_email";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_CACHE_PATH:
-//        return "cache_path";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_DATA_PATH:
-//        return "data_path";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_DEFAULT_LOG_PATH:
-//        return "/var/log/snapwebsites";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_ERROR_REPORT_CRITICAL_PRIORITY:
-//        return "error_report_critical_priority";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_ERROR_REPORT_LOW_PRIORITY:
-//        return "error_report_low_priority";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_ERROR_REPORT_MEDIUM_PRIORITY:
-//        return "error_report_medium_priority";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_ERROR_REPORT_SETTLE_TIME:
-//        return "error_report_settle_time";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_FROM_EMAIL:
-//        return "from_email";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_LOG_DEFINITIONS_PATH:
-//        return "watchdog_log_definitions_path";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_LOG_PATH:
-//        return "log_path";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_SERVER_NAME:
-//        return "server_name";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_SERVERSTATS:
-//        return "serverstats";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_STATISTICS_FREQUENCY:
-//        return "statistics_frequency";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_STATISTICS_PERIOD:
-//        return "statistics_period";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_STATISTICS_TTL:
-//        return "statistics_ttl";
-//
-//    case name_t::SNAP_NAME_WATCHDOG_USER_GROUP:
-//        return "user_group";
-//
-//    default:
-//        // invalid index
-//        throw snap_logic_error("Invalid SNAP_NAME_WATCHDOG_...");
-//
-//    }
-//    snapdev::NOT_REACHED();
-//}
 
 
-
-}
-
-
-/** \brief Initialize the watchdog server.
+/** \brief Initialize the sitter server.
  *
  * This constructor makes sure to setup the correct filename for the
- * snapwatchdog server configuration file.
+ * sitter server configuration file.
  */
 server::server(int argc, char * argv[])
-    : dispatcher(this, g_snapwatchdog_service_messages)
+    : dispatcher(this, g_sitter_service_messages)
     , f_opts(g_options_environment)
     , f_logrotate(f_opts, "127.0.0.1", 4988)
-    , f_server_start_date(time(nullptr))
     , f_snapcommunicator_disconnected(time(nullptr))
 {
     snaplogger::add_logger_options(f_opts);
@@ -781,8 +584,29 @@ server::server(int argc, char * argv[])
         throw advgetopt::getopt_exit("logger options generated an error.", 0);
     }
     f_logrotate.process_logrotate_options();
+}
 
-    add_communicator_commands();
+
+/** \brief Save the pointer to the instance of the server.
+ *
+ * The server is created by the main() function. It then calls this function
+ * to save the pointer_t of the server in a global variable managed internally
+ * and accessible from the instance() function.
+ *
+ * \exception logic_error
+ * If the g_server pointer is already set (not nullptr), then this exception
+ * is raised.
+ *
+ * \param[in] s  The new server.
+ */
+void server::set_instance(pointer_t s)
+{
+    if(g_server != nullptr)
+    {
+        throw logic_error("the server is already defined.");
+    }
+
+    g_server = s;
 }
 
 
@@ -792,49 +616,20 @@ server::server(int argc, char * argv[])
  * If the instance does not exist yet, then it gets created. A
  * server is also a plugin which is named "server".
  *
- * \return A manager pointer to the watchdog server.
+ * \exception logic_error
+ * This exception is raised if this function gets called before the
+ * set_instance() happens.
+ *
+ * \return The managed pointer to the sitter server.
  */
 server::pointer_t server::instance()
 {
-    server::pointer_t s(get_instance());
-    if(!s)
+    if(g_server == nullptr)
     {
-        plugins::g_next_register_name = "server";
-        plugins::g_next_register_filename = __FILE__;
-
-        s = set_instance(server::pointer_t(new server));
-
-        plugins::g_next_register_name.clear();
-        plugins::g_next_register_filename.clear();
+        throw logic_error("the server pointer was not yet defined with set_instance().");
     }
-    return std::dynamic_pointer_cast<server>(s);
-}
 
-
-/** \brief Get the time in seconds when the server started.
- *
- * This function is used to know at what time this watchdog instance
- * was started. We avoid sending emails within the first 5 minutes.
- *
- * \return The time, in seconds, when the server started.
- */
-time_t server::get_start_date() const
-{
-    return f_start_date;
-}
-
-
-/** \brief Print the version string to stderr.
- *
- * This function prints out the version string of this server to the standard
- * error stream.
- *
- * This is a virtual function so that way servers and daemons that derive
- * from snap::server have a chance to show their own version.
- */
-void server::show_version()
-{
-    std::cerr << SNAPWATCHDOG_VERSION_STRING << std::endl;
+    return g_server;
 }
 
 
@@ -845,14 +640,18 @@ void server::show_version()
  * connections such as the messenger to communicate with the
  * snapcommunicator service.
  */
-void server::run()
+int server::run()
 {
     SNAP_LOG_INFO
-        << "------------------------------------ snapwatchdog started on "
-        << get_server_name()
+        << "------------------------------------ sitter "
+        << snapdev::gethostname()
+        << " started."
         << SNAP_LOG_SEND;
 
-    init_parameters();
+    if(!init_parameters())
+    {
+        return 1;
+    }
 
     // TODO: test that the "sites" table is available?
     //       (we will not need any such table here)
@@ -864,12 +663,9 @@ void server::run()
     g_interrupt.reset(new interrupt(instance()));
     g_communicator->add_connection(g_interrupt);
 
-    // in case we cannot properly connect to Cassandra
-    //
-    g_cassandra_check_timer.reset(new cassandra_check_timer(instance()));
-    g_communicator->add_connection(g_cassandra_check_timer);
-
     // get the snapcommunicator IP and port
+    // TODO: switch to fluid-settings
+    //
     advgetopt::conf_file_setup conf_setup("/etc/snapwebsites/snapcommunicator.conf");
     advgetopt::conf_file::pointer_t snapcommunicator(advgetopt::conf_file::get_conf_file(conf_setup));
     std::string const communicator_addr("127.0.0.1");
@@ -894,24 +690,20 @@ void server::run()
     g_tick_timer.reset(new tick_timer(instance(), f_statistics_frequency));
     g_communicator->add_connection(g_tick_timer);
 
-    // create a signal handler that knows when the child dies.
+    // start runner thread
     //
-    g_sigchld_connection.reset(new sigchld_connection(instance()));
-    g_communicator->add_connection(g_sigchld_connection);
-
-    server_loop_ready();
+    f_worker = std::make_shared<sitter_worker>(shared_from_this());
+    f_worker_thread = std::make_shared<cppthread::thread>("worker", f_worker);
 
     // now start the run() loop
     //
     g_communicator->run();
 
     // got a RELOADCONFIG message?
-    // (until our daemons are capable of reloading configuration files)
+    // (until our daemons are capable of reloading configuration files
+    // or rather, until we have the `fluid-settings` daemon)
     //
-    if(f_force_restart)
-    {
-        exit(1);
-    }
+    return f_force_restart ? 2 : 0;
 }
 
 
@@ -936,168 +728,7 @@ bool server::send_message(ed::message const & message, bool cache)
  */
 void server::process_tick()
 {
-    // Can connect to Cassandra yet?
-    //
-    // We now support running without Cassandra
-    //
-    //if(f_snapdbproxy_addr.isEmpty())
-    //{
-    //    SNAP_LOG_TRACE
-    //        << "cannot connect to Cassandra, f_snapdbproxy_addr is undefined."
-    //        << SNAP_LOG_SEND;
-    //    return;
-    //}
-
-    // make sure we do not start more than one tick process because that
-    // would cause horrible problems (i.e. many fork()'s, heavy memory
-    // usage, CPU usage, incredible I/O, etc.) although that should not
-    // happen because the tick happens only once per minute, you never
-    // know what can happen in advance...
-    //
-    if(f_processes.end() == std::find_if(
-                f_processes.begin(),
-                f_processes.end(),
-                [](auto const & child)
-                {
-                    return child->is_tick();
-                })
-    )
-    {
-        // create a new child object
-        //
-        watchdog_child::pointer_t child(std::make_shared<watchdog_child>(instance(), true));
-
-        // start the watchdog plugins (it will fork() and return so we can
-        // continue to wait for signals in our run() function.)
-        //
-        if(child->run_watchdog_plugins())
-        {
-            // the fork() succeeded, add to the list of processes
-            //
-            f_processes.push_back(child);
-        }
-    }
-    else
-    {
-        SNAP_LOG_TRACE
-            << "previous watchdog_child still running, ignore this tick"
-            << SNAP_LOG_SEND;
-    }
-}
-
-
-/** \brief The process detected that its child died.
- *
- * The watchdog starts a child to run watchdog plugins to check various
- * things on each server (i.e. whether a process is running, etc.)
- *
- * This callback is run whenever the SIGCHLD is received. The function
- * waits on the child to remove the zombie and then it resets the
- * child process object.
- */
-void server::process_sigchld()
-{
-    // check for the children that are done, we cannot block here
-    // especially because a child may not always signal us properly
-    // (especially because we are using the signalfd capability...)
-    //
-    for(;;)
-    {
-        int status(0);
-        pid_t const the_pid(waitpid(-1, &status, WNOHANG));
-        if(the_pid == 0)
-        {
-            // no more zombie, move on
-            //
-            break;
-        }
-
-        if( the_pid == -1 )
-        {
-            // waitpid() may return with ECHILD and -1 instead of 0
-            // in the_pid variable when no children are available
-            //
-            if(errno == ECHILD)
-            {
-                break;
-            }
-
-            // the waitpid() should never fail... we just generate a log and
-            // go on
-            //
-            int const e(errno);
-            SNAP_LOG_ERROR
-                << "waitpid() returned an error ("
-                << strerror(e)
-                << ")."
-                << SNAP_LOG_SEND;
-        }
-        else
-        {
-            f_processes.erase(
-                    std::remove_if(
-                        f_processes.begin(),
-                        f_processes.end(),
-                        [&the_pid](watchdog_child::pointer_t child)
-                        {
-                            return child->get_child_pid() == the_pid;
-                        }),
-                    f_processes.end());
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wold-style-cast"
-            if(WIFEXITED(status))
-            {
-                int const exit_code(WEXITSTATUS(status));
-
-                if( exit_code == 0 )
-                {
-                    // when this happens there is not really anything to tell about
-                    SNAP_LOG_DEBUG
-                        << "\"snapwatchdog\" statistics plugins terminated normally."
-                        << SNAP_LOG_SEND;
-                }
-                else
-                {
-                    SNAP_LOG_INFO
-                        << "\"snapwatchdog\" statistics plugins terminated normally, but with exit code "
-                        << exit_code
-                        << SNAP_LOG_SEND;
-                }
-            }
-            else if(WIFSIGNALED(status))
-            {
-                int const signal_code(WTERMSIG(status));
-                bool const has_code_dump(!!WCOREDUMP(status));
-
-                SNAP_LOG_ERROR
-                    << "\"snapwatchdog\" statistics plugins terminated because of OS signal \""
-                    << strsignal(signal_code)
-                    << "\" ("
-                    << signal_code
-                    << ")"
-                    << (has_code_dump ? " and a core dump was generated" : "")
-                    << "."
-                    << SNAP_LOG_SEND;
-            }
-            else
-            {
-                // I do not think we can reach here...
-                //
-                SNAP_LOG_ERROR
-                    << "\"snapwatchdog\" statistics plugins terminated abnormally in an unknown way."
-                    << SNAP_LOG_SEND;
-            }
-#pragma GCC diagnostic pop
-
-        }
-    }
-
-    if(f_stopping
-    && f_processes.empty())
-    {
-        g_communicator->remove_connection(g_sigchld_connection);
-    }
+    f_worker->tick();
 }
 
 
@@ -1108,62 +739,42 @@ void server::process_sigchld()
  *
  * If a parameter is not valid, the function calls exit(1) so the server
  * does not do anything.
+ *
+ * \return true if the initialization succeeds, false if any parameter is
+ * invalid.
  */
-void server::init_parameters()
+bool server::init_parameters()
 {
     // Time Frequency (how often we gather the stats)
     {
-        QString const statistics_frequency(get_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_STATISTICS_FREQUENCY)));
-        bool ok(false);
-        f_statistics_frequency = static_cast<int64_t>(statistics_frequency.toLongLong(&ok));
-        if(!ok)
-        {
-            SNAP_LOG_FATAL
-                << "statistic frequency \""
-                << statistics_frequency
-                << "\" is not a valid number."
-                << SNAP_LOG_SEND;
-            exit(1);
-        }
+        f_statistics_frequency = f_opts.get_long("statistics-frequency");
         if(f_statistics_frequency < 0)
         {
             SNAP_LOG_FATAL
                 << "statistic frequency ("
-                << statistics_frequency
+                << f_statistics_frequency
                 << ") cannot be a negative number."
                 << SNAP_LOG_SEND;
-            exit(1);
+            return false;
         }
         if(f_statistics_frequency < 60)
         {
             // minimum is 1 minute
             f_statistics_frequency = 60;
         }
-        f_statistics_frequency *= 1000000; // the value in microseconds
     }
 
     // Time Period (how many stats we keep in the db)
     {
-        QString const statistics_period(get_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_STATISTICS_PERIOD)));
-        bool ok(false);
-        f_statistics_period = static_cast<int64_t>(statistics_period.toLongLong(&ok));
-        if(!ok)
-        {
-            SNAP_LOG_FATAL
-                << "statistic period \""
-                << statistics_period
-                << "\" is not a valid number."
-                << SNAP_LOG_SEND;
-            exit(1);
-        }
+        f_statistics_period = f_opts.get_long("statistics-period");
         if(f_statistics_period < 0)
         {
             SNAP_LOG_FATAL
                 << "statistic period ("
-                << statistics_period
+                << f_statistics_period
                 << ") cannot be a negative number."
                 << SNAP_LOG_SEND;
-            exit(1);
+            return false;
         }
         if(f_statistics_period < 3600)
         {
@@ -1178,7 +789,7 @@ void server::init_parameters()
 
     // Time To Live (TTL, used to make sure we do not overcrowd the database)
     {
-        QString const statistics_ttl(get_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_STATISTICS_TTL)));
+        std::string const statistics_ttl(f_opts.get_string("statistics-ttl"));
         if(statistics_ttl == "off")
         {
             f_statistics_ttl = 0;
@@ -1189,16 +800,16 @@ void server::init_parameters()
         }
         else
         {
-            bool ok(false);
-            f_statistics_ttl = static_cast<int64_t>(statistics_ttl.toLongLong(&ok));
-            if(!ok)
+            if(!advgetopt::validator_integer::convert_string(
+                      statistics_ttl
+                    , f_statistics_ttl))
             {
                 SNAP_LOG_FATAL
                     << "statistic ttl \""
                     << statistics_ttl
                     << "\" is not a valid number."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
             if(f_statistics_ttl < 0)
             {
@@ -1207,7 +818,7 @@ void server::init_parameters()
                     << statistics_ttl
                     << ") cannot be a negative number."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
             if(f_statistics_ttl != 0
             && f_statistics_ttl < 3600)
@@ -1221,45 +832,33 @@ void server::init_parameters()
 
     // Amount of time before we start sending reports by email
     {
-        QString const settle_time(get_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_ERROR_REPORT_SETTLE_TIME)));
-        if(!settle_time.isEmpty())
+        f_error_report_settle_time = f_opts.get_long("error-report-settle-time");
+
+        if(f_error_report_settle_time < 0)
         {
-            bool ok(false);
-            f_error_report_settle_time = static_cast<int64_t>(settle_time.toLongLong(&ok));
-            if(!ok)
-            {
-                SNAP_LOG_FATAL
-                    << "error report settle time \""
-                    << settle_time
-                    << "\" is not a valid number."
-                    << SNAP_LOG_SEND;
-                exit(1);
-            }
-            if(f_error_report_settle_time < 0)
-            {
-                SNAP_LOG_FATAL
-                    << "error report settle time ("
-                    << settle_time
-                    << ") cannot be a negative number."
-                    << SNAP_LOG_SEND;
-                exit(1);
-            }
-            if(f_error_report_settle_time < 60)
-            {
-                // minimum is 1 minute
-                //
-                f_error_report_settle_time = 60;
-            }
-            // TBD: should we have a maximum like 1h?
+            SNAP_LOG_FATAL
+                << "error report settle time ("
+                << f_error_report_settle_time
+                << ") cannot be a negative number."
+                << SNAP_LOG_SEND;
+            return false;
         }
+        if(f_error_report_settle_time < 60)
+        {
+            // minimum is 1 minute
+            //
+            f_error_report_settle_time = 60;
+        }
+        // TBD: should we have a maximum like 1h?
     }
 
     // Low priority and span
     {
-        QString const low_priority(get_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_ERROR_REPORT_LOW_PRIORITY)));
-        if(!low_priority.isEmpty())
+        std::string const low_priority(f_opts.get_string("error-report-low-priority"));
+        if(!low_priority.empty())
         {
-            snap::snap_string_list prio_span(low_priority.split(','));
+            advgetopt::string_list_t prio_span;
+            advgetopt::split_string(low_priority, prio_span, {","});
             if(prio_span.size() > 2)
             {
                 SNAP_LOG_FATAL
@@ -1267,19 +866,19 @@ void server::init_parameters()
                     << low_priority
                     << "\" is expect to have two numbers separated by one comma. The second number is optional."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
 
-            bool ok(false);
-            f_error_report_low_priority = static_cast<int64_t>(prio_span[0].toLongLong(&ok));
-            if(!ok)
+            if(!advgetopt::validator_integer::convert_string(
+                          prio_span[0]
+                        , f_error_report_low_priority))
             {
                 SNAP_LOG_FATAL
                     << "error report low priority \""
                     << low_priority
                     << "\" is not a valid number."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
             if(f_error_report_low_priority < 1)
             {
@@ -1288,7 +887,7 @@ void server::init_parameters()
                     << low_priority
                     << ") cannot be negative or null."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
             if(f_error_report_low_priority > 50)
             {
@@ -1298,17 +897,18 @@ void server::init_parameters()
             }
 
             if(prio_span.size() == 2
-            && !prio_span[1].isEmpty())
+            && !prio_span[1].empty())
             {
-                f_error_report_low_span = static_cast<int64_t>(prio_span[1].toLongLong(&ok));
-                if(!ok)
+                if(!advgetopt::validator_integer::convert_string(
+                              prio_span[1]
+                            , f_error_report_low_span))
                 {
                     SNAP_LOG_FATAL
                         << "error report low span \""
                         << low_priority
                         << "\" is not a valid number."
                         << SNAP_LOG_SEND;
-                    exit(1);
+                    return false;
                 }
                 if(f_error_report_low_span < 0)
                 {
@@ -1317,7 +917,7 @@ void server::init_parameters()
                         << low_priority
                         << ") cannot be negative or null."
                         << SNAP_LOG_SEND;
-                    exit(1);
+                    return false;
                 }
                 if(f_error_report_low_span < 86400)
                 {
@@ -1331,10 +931,11 @@ void server::init_parameters()
 
     // Medium priority and span
     {
-        QString const medium_priority(get_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_ERROR_REPORT_MEDIUM_PRIORITY)));
-        if(!medium_priority.isEmpty())
+        std::string const medium_priority(f_opts.get_string("error-report-medium-priority"));
+        if(!medium_priority.empty())
         {
-            snap::snap_string_list prio_span(medium_priority.split(','));
+            advgetopt::string_list_t prio_span;
+            advgetopt::split_string(medium_priority, prio_span, {","});
             if(prio_span.size() > 2)
             {
                 SNAP_LOG_FATAL
@@ -1342,19 +943,19 @@ void server::init_parameters()
                     << medium_priority
                     << "\" is expect to have two numbers separated by one comma. The second number is optional."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
 
-            bool ok(false);
-            f_error_report_medium_priority = static_cast<int64_t>(prio_span[0].toLongLong(&ok));
-            if(!ok)
+            if(!advgetopt::validator_integer::convert_string(
+                          prio_span[0]
+                        , f_error_report_medium_priority))
             {
                 SNAP_LOG_FATAL
                     << "error report medium priority \""
                     << medium_priority
                     << "\" is not a valid number."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
             if(f_error_report_medium_priority < 1)
             {
@@ -1363,21 +964,22 @@ void server::init_parameters()
                     << medium_priority
                     << ") cannot be negative or null."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
 
             if(prio_span.size() == 2
-            && !prio_span[1].isEmpty())
+            && !prio_span[1].empty())
             {
-                f_error_report_medium_span = static_cast<int64_t>(prio_span[1].toLongLong(&ok));
-                if(!ok)
+                if(!advgetopt::validator_integer::convert_string(
+                              prio_span[1]
+                            , f_error_report_medium_span))
                 {
                     SNAP_LOG_FATAL
                         << "error report medium span \""
                         << medium_priority
                         << "\" is not a valid number."
                         << SNAP_LOG_SEND;
-                    exit(1);
+                    return false;
                 }
                 if(f_error_report_medium_span < 0)
                 {
@@ -1386,7 +988,7 @@ void server::init_parameters()
                         << medium_priority
                         << ") cannot be negative or null."
                         << SNAP_LOG_SEND;
-                    exit(1);
+                    return false;
                 }
                 if(f_error_report_medium_span < 3600)
                 {
@@ -1400,10 +1002,11 @@ void server::init_parameters()
 
     // Critical priority and span
     {
-        QString const critical_priority(get_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_ERROR_REPORT_CRITICAL_PRIORITY)));
-        if(!critical_priority.isEmpty())
+        std::string const critical_priority(f_opts.get_string("error-report-critical-priority"));
+        if(!critical_priority.empty())
         {
-            snap::snap_string_list prio_span(critical_priority.split(','));
+            advgetopt::string_list_t prio_span;
+            advgetopt::split_string(critical_priority, prio_span, {","});
             if(prio_span.size() > 2)
             {
                 SNAP_LOG_FATAL
@@ -1411,19 +1014,19 @@ void server::init_parameters()
                     << critical_priority
                     << "\" is expect to have two numbers separated by one comma. The second number is optional."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
 
-            bool ok(false);
-            f_error_report_critical_priority = static_cast<int64_t>(prio_span[0].toLongLong(&ok));
-            if(!ok)
+            if(!advgetopt::validator_integer::convert_string(
+                          prio_span[0]
+                        , f_error_report_critical_priority))
             {
                 SNAP_LOG_FATAL
                     << "error report critical priority \""
                     << critical_priority
                     << "\" is not a valid number."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
             if(f_error_report_critical_priority < 1)
             {
@@ -1432,7 +1035,7 @@ void server::init_parameters()
                     << critical_priority
                     << ") cannot be negative or null."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
             if(f_error_report_critical_priority > 100)
             {
@@ -1443,21 +1046,22 @@ void server::init_parameters()
                     << critical_priority
                     << ") cannot be larger than 100."
                     << SNAP_LOG_SEND;
-                exit(1);
+                return false;
             }
 
             if(prio_span.size() == 2
-            && !prio_span[1].isEmpty())
+            && !prio_span[1].empty())
             {
-                f_error_report_critical_span = static_cast<int64_t>(prio_span[1].toLongLong(&ok));
-                if(!ok)
+                if(!advgetopt::validator_integer::convert_string(
+                              prio_span[1]
+                            , f_error_report_critical_span))
                 {
                     SNAP_LOG_FATAL
                         << "error report critical span \""
                         << critical_priority
                         << "\" is not a valid number."
                         << SNAP_LOG_SEND;
-                    exit(1);
+                    return false;
                 }
                 if(f_error_report_critical_span < 0)
                 {
@@ -1466,7 +1070,7 @@ void server::init_parameters()
                         << critical_priority
                         << ") cannot be negative or null."
                         << SNAP_LOG_SEND;
-                    exit(1);
+                    return false;
                 }
                 if(f_error_report_critical_span < 300)
                 {
@@ -1490,7 +1094,7 @@ void server::init_parameters()
             << f_error_report_low_priority
             << ")."
             << SNAP_LOG_SEND;
-        exit(1);
+        return false;
     }
     if(f_error_report_critical_priority < f_error_report_medium_priority)
     {
@@ -1501,7 +1105,7 @@ void server::init_parameters()
             << f_error_report_medium_priority
             << ")."
             << SNAP_LOG_SEND;
-        exit(1);
+        return false;
     }
 
     if(f_error_report_medium_span > f_error_report_low_span)
@@ -1513,7 +1117,7 @@ void server::init_parameters()
             << f_error_report_low_span
             << ")."
             << SNAP_LOG_SEND;
-        exit(1);
+        return false;
     }
     if(f_error_report_critical_span > f_error_report_medium_span)
     {
@@ -1524,71 +1128,16 @@ void server::init_parameters()
             << f_error_report_medium_span
             << ")."
             << SNAP_LOG_SEND;
-        exit(1);
+        return false;
     }
-}
 
-
-void server::msg_nocassandra(ed::message & message)
-{
-    snapdev::NOT_USED(message);
-
-    // we lost Cassandra, "disconnect" from snapdbproxy until we
-    // get CASSANDRAREADY again
-    //
-    f_snapdbproxy_addr.clear();
-    f_snapdbproxy_port = 0;
-}
-
-
-void server::msg_cassandraready(ed::message & message)
-{
-    snapdev::NOT_USED(message);
-
-    // connect to Cassandra and verify that a "serverstats"
-    // table exists
-    //
-    bool timer_required(false);
-    if(!check_cassandra(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_SERVERSTATS), timer_required))
-    {
-        if(timer_required
-        && g_cassandra_check_timer != nullptr)
-        {
-            // it did not quite work, setup a timer so the snapwatchdog
-            // daemon gets awaken again later to attempt a new connect
-            //
-            g_cassandra_check_timer->set_enable(true);
-        }
-    }
+    return true;
 }
 
 
 void server::msg_rusage(ed::message & message)
 {
-    // Can connect to Cassandra yet?
-    //
-    // We now support running without Cassandra
-    //
-    //if(f_snapdbproxy_addr.isEmpty())
-    //{
-    //    return;
-    //}
-
-    // a process just sent us its RUSAGE just before exiting
-    // (note that a UDP message is generally used to send that info
-    // so we are likely to miss some of those statistics)
-    //
-    watchdog_child::pointer_t child(std::make_shared<watchdog_child>(instance(), false));
-
-    // we use a child because we need to connect to the database
-    // so that call returns immediately after the fork() call
-    //
-    if(child->record_usage(message))
-    {
-        // the fork() succeeded, keep the child as a process
-        //
-        f_processes.push_back(child);
-    }
+    record_usage(message);
 }
 
 
@@ -1664,6 +1213,18 @@ int64_t server::get_error_report_critical_span() const
 }
 
 
+void server::set_ticks(int ticks)
+{
+    f_ticks = ticks;
+}
+
+
+int server::get_ticks() const
+{
+    return f_ticks;
+}
+
+
 
 bool server::output_process(
       std::string const & plugin_name
@@ -1681,7 +1242,7 @@ bool server::output_process(
         //
         process["error"] = "missing";
 
-        f_snap->append_error(
+        append_error(
                   json
                 , plugin_name
                 , "can't find mandatory processs \""
@@ -1755,12 +1316,7 @@ void server::stop(bool quitting)
     }
 
     g_communicator->remove_connection(g_interrupt);
-    g_communicator->remove_connection(g_cassandra_check_timer);
     g_communicator->remove_connection(g_tick_timer);
-    if(f_processes.empty())
-    {
-        g_communicator->remove_connection(g_sigchld_connection);
-    }
 }
 
 
@@ -1801,54 +1357,12 @@ time_t server::get_snapcommunicator_disconnected_on() const
 
 std::string server::get_server_parameter(std::string const & name) const
 {
-    if(f_opt.is_defined(name))
+    if(f_opts.is_defined(name))
     {
-        return f_opt.get_string(name);
+        return f_opts.get_string(name);
     }
 
     return std::string();
-}
-
-
-
-/** \brief Initialize the watchdog child.
- *
- * This function saves the server pointer so it can be accessed
- * as we do in plugins with the f_snap pointer.
- *
- * \param[in] s  The server watchdog.
- * \param[in] tick  Whether the child is used to work on a tick or not.
- */
-watchdog_child::watchdog_child(server_pointer_t s, bool tick)
-    : snap_child(s)
-    , f_tick(tick)
-{
-}
-
-
-/** \brief Clean up the watchdog child.
- *
- * Make sure the child is cleaned.
- */
-watchdog_child::~watchdog_child()
-{
-}
-
-
-/** \brief Check whether this child was created to process a tick.
- *
- * If this function returns true, then this indicates that the process
- * was created to process a timer tick. This is run once per minute to
- * generate a constant stream of statistic data.
- *
- * Other children may be created for other purposes in which case this
- * function returns false (i.e. the RUSAGE implementation.)
- *
- * \return true if created to process the timer tick.
- */
-bool watchdog_child::is_tick() const
-{
-    return f_tick;
 }
 
 
@@ -1867,13 +1381,13 @@ bool watchdog_child::is_tick() const
  *
  * \return The full path including your filename.
  */
-std::string sitter::get_cache_path(std::string const & filename)
+std::string server::get_cache_path(std::string const & filename)
 {
     if(f_cache_path.empty())
     {
         // get the path specified by the administrator
         //
-        f_cache_path = to_string(get_server_parameter(snap::watchdog::get_name(snap::watchdog::name_t::SNAP_NAME_WATCHDOG_CACHE_PATH)));
+        f_cache_path = f_opts.get_string("cache-path");
         if(f_cache_path.empty())
         {
             // no administrator path, use the default
@@ -1898,623 +1412,80 @@ std::string sitter::get_cache_path(std::string const & filename)
 }
 
 
-/** \brief Run watchdog plugins.
+/** \brief Process an RUSAGE message.
  *
- * This function runs all the watchdog plugins and saves the results
- * in a file and the database.
+ * This function processes an RUSAGE message.
  *
- * If no plugins are are defined, the result will be empty.
- *
- * The function makes use of a try/catch block to avoid ending the
- * process if an error occurs. However, problems should get fixed
- * or you will certainly not get the results you are looking for.
- */
-bool watchdog_child::run_watchdog_plugins()
-{
-    // create a child process so the data between sites does not get
-    // shared (also the Cassandra data would remain in memory increasing
-    // the foot print each time we run a new website,) but the worst
-    // are the plugins; we can request a plugin to be unloaded but
-    // frankly the system is not very well written to handle that case.
-    //
-    f_child_pid = fork_child();
-    if(f_child_pid != 0)
-    {
-        int const e(errno);
-
-        // parent process
-        if(f_child_pid == -1)
-        {
-            // we do not try again, we just abandon the whole process
-            //
-            SNAP_LOG_ERROR
-                << "watchdog_child::run_watchdog_plugins() could not create child process, fork() failed with errno: "
-                << e
-                << " -- "
-                << strerror(e)
-                << "."
-                << SNAP_LOG_SEND;
-            return false;
-        }
-
-        SNAP_LOG_TRACE
-            << "new watchdog_child started, pid = "
-            << f_child_pid
-            << SNAP_LOG_SEND;
-
-        return true;
-    }
-
-    // we are the child, run the watchdog_process() signal
-    try
-    {
-        f_ready = false;
-
-        // on fork() we lose the configuration so we have to reload it
-        //
-        // TBD: is a reopen() required?
-        //
-        //logging::reconfigure();
-        snaplogger::logger::get_instance()->reopen();
-
-        init_start_date();
-
-        // the usefulness of the weak pointer is questionable here since
-        // we have it locked for the rest of the child process
-        //
-        auto server(std::dynamic_pointer_cast<server>(f_server.lock()));
-        if(server == nullptr)
-        {
-            throw snap_child_exception_no_server("watchdog_child::run_watchdog_plugins(): The f_server weak pointer could not be locked");
-        }
-
-        if(server->snapdbproxy_addr().isEmpty())
-        {
-            // no need to test if the address is empty
-            //
-            f_has_cassandra = false;
-        }
-        else
-        {
-            f_has_cassandra = connect_cassandra(false);
-        }
-
-        // initialize the plugins
-        //
-        // notice the introducer, it's important since all the watchdog
-        // plugin names start wit "lib" + "watchdog_" + <name> + ".so"
-        //
-        init_plugins(false, "watchdog");
-
-        f_ready = true;
-
-        // create the watchdog document
-        //
-        QDomDocument doc("watchdog");
-
-        // it doesn't look like Qt supports such
-        //QDomProcessingInstruction stylesheet(doc.createProcessingInstruction("xml-stylesheet", QString()));
-        //stylesheet.setAttribute("type", "text/xsl");
-        //stylesheet.setAttribute("href", "file:///home/snapwebsites/snapcpp/snapwebsites/snapwatchdog/conf/snapwatchdog-data.xsl");
-        //doc.appendChild(stylesheet);
-
-        // run each plugin watchdog function
-        //
-        {
-            // if we are in debug mode, let all messages go through,
-            // otherwise raise the level to WARNING to limit the messages
-            // because with a large number of plugins it generates a large
-            // number of log every single minute!
-            //
-            //snap::logging::raii_log_level save_log_level(server->is_debug()
-            //                                ? snap::logging::get_log_output_level()
-            //                                : snap::logging::log_level_t::LOG_LEVEL_WARNING);
-            snaplogger::override_lowest_severity_level save_log_level(snaplogger::severity_t::SEVERITY_WARNING);
-            server->process_watch(doc);
-        }
-
-        // verify and save the results accordingly
-        //
-        QString result(doc.toString());
-        if(result.isEmpty())
-        {
-            static bool err_once(true);
-            if(err_once)
-            {
-                err_once = false;
-                SNAP_LOG_ERROR
-                    << "watchdog_child::run_watchdog_plugins() generated a completely empty result. This can happen if you do not define any watchdog plugins."
-                    << SNAP_LOG_SEND;
-            }
-        }
-        else
-        {
-            int64_t const start_date(get_start_date());
-
-            // round to the minute first, then apply period
-            //
-            int64_t const date((start_date / (1000000LL * 60LL) * 60LL) % server->get_statistics_period());
-
-            // add the date in us to this result
-            //
-            QDomElement watchdog_tag(snap_dom::create_element(doc, "watchdog"));
-            watchdog_tag.setAttribute("date", static_cast<qlonglong>(start_date));
-            int64_t const current_date(get_current_date());
-            watchdog_tag.setAttribute("end-date", static_cast<qlonglong>(current_date));
-            result = "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
-                     "<?xml-stylesheet"
-                               " type=\"text/xsl\""
-                               " href=\"/snapwatchdog-data.xsl\"?>"
-                     + doc.toString(-1);
-            result.remove("<!DOCTYPE watchdog>");
-
-            // save the result in a file first
-            //
-            QString data_path(server->get_parameter(watchdog::get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_DATA_PATH)));
-            if(!data_path.isEmpty())
-            {
-                data_path += QString("/data/%1.xml").arg(date);
-
-                std::ofstream out;
-                out.open(data_path.toUtf8().data(), std::ios_base::binary);
-                if(out.is_open())
-                {
-                    // result already ends with a "\n"
-                    out << result;
-                }
-            }
-
-            // if there is an <error> tag, send an email about it
-            //
-            // give 5 min. to the server to get everything started, though,
-            // because otherwise we'd get a lot of false positive
-            //
-            size_t count(0);
-            time_t const server_start_date(server->get_server_start_date());
-            time_t const now(time(nullptr));
-            int64_t diff(now - server_start_date);
-            if(diff >= server->get_error_report_settle_time())
-            {
-                QDomElement error(snap_dom::get_child_element(doc, "watchdog/error"));
-                if(!error.isNull())
-                {
-                    // there is an <error> tag, report it, however, we do not
-                    // want to send more than one email every 15 min. unless
-                    // there is an error with a priority of 90 or more
-                    //
-                    int max_priority(0);
-                    for(QDomNode n(error.firstChild()); !n.isNull(); n = n.nextSibling())
-                    {
-                        if(n.isElement())
-                        {
-                            QDomElement msg(n.toElement());
-
-                            QString const attr_str(msg.attribute("priority"));
-                            bool ok(false);
-                            int const p(attr_str.toInt(&ok, 10));
-                            if(ok
-                            && p > max_priority)
-                            {
-                                max_priority = p;
-                            }
-
-                            ++count;
-                        }
-                    }
-
-                    // if too low a priority then ignore the errors altogether
-                    //
-                    // TODO: make this "10" a parameter in the watchdog.conf
-                    //       file so the user can choose what to receive
-                    //
-                    if(max_priority >= server->get_error_report_low_priority())
-                    {
-                        // how often to send an email depends on the priority
-                        // and the span parameters
-                        //
-                        // note that too often on a large cluster and you'll
-                        // die under the pressure! (some even call it spam)
-                        // so we limit the emails quite a bit by default...
-                        // admins can check the status any time from the
-                        // server side in snapmanager anyway and also the
-                        // priorities and span parameters can be changed
-                        // in the configuration file (search for
-                        // `error_report_` parameters in snapwatchdog.conf)
-                        //
-                        // note that the span does last across restarts of
-                        // the application
-                        //
-                        // the defaults at this time are:
-                        //
-                        // +----------+----------+--------+
-                        // | name     | priority | span   |
-                        // +----------+----------+--------+
-                        // | low      |       10 | 1 week |
-                        // | medium   |       50 | 3 days |
-                        // | critical |       90 | 1 day  |
-                        // +----------+----------+--------+
-                        //
-                        int64_t const span(max_priority >= server->get_error_report_critical_priority()
-                                                ? server->get_error_report_critical_span()
-                                                : (max_priority >= server->get_error_report_medium_priority()
-                                                    ? server->get_error_report_medium_span()
-                                                    : server->get_error_report_low_span()));
-
-                        // use a file in the cache area since we are likely
-                        // to regenerate it often or just ignore it for a
-                        // while (and if ignored for a while it could as
-                        // well be deleted)
-                        //
-                        QString const last_email_filename(get_cache_path("last_email_time.txt"));
-
-                        bool send_email(true);
-                        bool file_opened(false);
-                        QFile file(last_email_filename);
-                        if(file.exists())
-                        {
-                            // when the file exists we want to read it
-                            // first and determine whether 'span' has
-                            // passed, if so, we write 'now' in the file
-                            // and send the email
-                            //
-                            if(file.open(QIODevice::ReadOnly))
-                            {
-                                file_opened = true;
-                                QByteArray const value(file.readAll());
-                                QString const last_mail_date_str(value);
-                                bool ok(false);
-                                int64_t const last_mail_date(last_mail_date_str.toLongLong(&ok, 10));
-                                if(ok)
-                                {
-                                    if(now - last_mail_date < span)
-                                    {
-                                        // span has not yet elapsed, keep
-                                        // the file as is and don't send
-                                        // the email
-                                        //
-                                        send_email = false;
-                                    }
-                                }
-                                file.close();
-                            }
-                        }
-
-                        if(send_email)
-                        {
-                            // first save the time when we are sending the email
-                            //
-                            if(file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-                            {
-                                QString const data_str(QString("%1").arg(now));
-                                QByteArray const data(data_str.toUtf8());
-                                file.write(data.data(), data.size());
-                                file.close();
-                            }
-
-                            // get the emails where to send the data
-                            // if not available, it "breaks" the process
-                            //
-                            QString from_email(get_server_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_FROM_EMAIL)));
-                            QString administrator_email(get_server_parameter(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_ADMINISTRATOR_EMAIL)));
-                            if(!from_email.isEmpty()
-                            && !administrator_email.isEmpty())
-                            {
-                                // create the email and add a few headers
-                                //
-                                libmimemail::email e;
-                                e.set_from(from_email);
-                                e.set_to(administrator_email);
-                                e.set_priority(email::priority_t::EMAIL_PRIORITY_URGENT);
-
-                                char hostname[HOST_NAME_MAX + 1];
-                                if(gethostname(hostname, sizeof(hostname)) != 0)
-                                {
-                                    strncpy(hostname, "<unknown>", sizeof(hostname));
-                                }
-                                QString const subject(QString("snapwatchdog: found %1 error%2 on %3")
-                                                .arg(count)
-                                                .arg(count == 1 ? "" : "s")
-                                                .arg(hostname));
-                                e.set_subject(subject);
-
-                                e.add_header("X-SnapWatchdog-Version", SNAPWATCHDOG_VERSION_STRING);
-
-                                // prevent blacklisting
-                                // (since we won't run the `sendmail` plugin validation, it's not necessary)
-                                //e.add_parameter(sendmail::get_name(sendmail::name_t::SNAP_NAME_SENDMAIL_BYPASS_BLACKLIST), "true");
-
-                                // generate a body in HTML
-                                //
-                                QByteArray data;
-                                {
-                                    QString const error_to_email_filename(":/xsl/layout/error-to-email.xsl");
-                                    QFile error_to_email_file(error_to_email_filename);
-                                    if(error_to_email_file.open(QIODevice::ReadOnly))
-                                    {
-                                        data = error_to_email_file.readAll();
-                                    }
-                                }
-                                email::attachment html;
-                                QString const xsl(QString::fromUtf8(data.data(), data.size()));
-                                if(xsl.isEmpty())
-                                {
-                                    SNAP_LOG_ERROR
-                                        << "could not read error-to-email.xsl from resources."
-                                        << SNAP_LOG_SEND;
-                                    html.quoted_printable_encode_and_set_data("<html><body><p>Sorry! Could not find error-to-email.xsl in the resources. See Snap! Watchdog errors in attached XML.</p></body></html>", "text/html");
-                                }
-                                else
-                                {
-                                    xslt x;
-                                    x.set_xsl(xsl);
-                                    x.set_document(doc);
-                                    QDomDocument doc_email("html");
-                                    x.evaluate_to_document(doc_email);
-                                    html.quoted_printable_encode_and_set_data(doc_email.toString(-1).toUtf8(), "text/html");
-                                }
-                                e.set_body_attachment(html);
-
-                                // add the XML as an attachment
-                                //
-                                email::attachment a;
-                                a.quoted_printable_encode_and_set_data(result.toUtf8(), "application/xml");
-                                a.set_content_disposition("snapwatchdog.xml");
-                                a.add_header("X-Start-Date", QString("%1").arg(start_date));
-                                e.add_attachment(a);
-
-                                // finally send email
-                                //
-                                e.send();
-                            }
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // let us know with a debug in case error go unreported
-                // because they happen early on; these could be of interest
-                // in some cases
-                //
-                SNAP_LOG_DEBUG
-                    << "found errors, but not reporting them because it has been less than 5 min. that this daemon started."
-                    << SNAP_LOG_SEND;
-            }
-
-            // save the number of errors to a file so the snapmanager
-            // can actually pick that information and display it
-            // (through the snapwatchdog plugin extension to the
-            // snapmanager.)
-            //
-            QString const last_result_filename(get_cache_path("last_results.txt"));
-            std::ofstream info;
-            info.open(last_result_filename.toUtf8().data(), std::ios_base::binary | std::ios_base::trunc | std::ios_base::out);
-            if(info.is_open())
-            {
-                info << "# This is an auto-generated file. Do not edit." << std::endl;
-                info << "error_count=" << count << std::endl;
-                info << "data_path=" << data_path << std::endl;
-            }
-
-            // then try to save it in the Cassandra database
-            // (if the cluster is not available, we still have the files!)
-            //
-            // retrieve server statistics table
-            //
-            int64_t const ttl(server->get_statistics_ttl());
-            if(f_has_cassandra
-            && ttl > 0)
-            {
-                QString const table_name(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_SERVERSTATS));
-                libdbproxy::table::pointer_t table(f_context->getTable(table_name));
-
-                libdbproxy::value value;
-                value.setStringValue(result);
-                value.setTtl(ttl);
-                QByteArray cell_key;
-                libdbproxy::setInt64Value(cell_key, date);
-                table->getRow(QString::fromUtf8(server->get_server_name().c_str()) + "/system-statistics")->getCell(cell_key)->setValue(value);
-            }
-        }
-
-        // the child has to exit()
-        exit(0);
-        snapdev::NOT_REACHED();
-    }
-    catch(libexcept::exception_t const & e)
-    {
-        SNAP_LOG_FATAL
-            << "watchdog_child::run_watchdog_plugins(): exception caught "
-            << e.what()
-            << SNAP_LOG_SEND;
-    }
-    catch(std::exception const & e)
-    {
-        SNAP_LOG_FATAL
-            << "watchdog_child::run_watchdog_plugins(): exception caught "
-            << e.what()
-            << SNAP_LOG_SEND;
-    }
-    catch(...)
-    {
-        SNAP_LOG_FATAL
-            << "watchdog_child::run_watchdog_plugins(): unknown exception caught!"
-            << SNAP_LOG_SEND;
-    }
-    exit(1);
-    snapdev::NOT_REACHED();
-    return false; // not reached, true or false is pretty much the same here
-}
-
-
-/** \brief Process a RUSAGE message.
- *
- * This function processes an RUSAGE message. Since it requires access to
- * the database which the server does not have, we create a child process
- * to do the work.
+ * \todo
+ * We may want to look into having a binary format instead of JSON.
  *
  * \param[in] message  The message we just received.
  */
-bool watchdog_child::record_usage(ed::message const & message)
+void server::record_usage(ed::message const & message)
 {
-    // create a child process so the data between sites does not get
-    // shared (also the Cassandra data would remain in memory increasing
-    // the foot print each time we run a new website,) but the worst
-    // are the plugins; we can request a plugin to be unloaded but
-    // frankly the system is not very well written to handle that case.
+    std::string const data_path(get_server_parameter(g_name_sitter_data_path));
+    if(data_path.empty())
+    {
+        return;
+    }
+
+    as2js::JSON json;
+
+    as2js::JSON::JSONValueRef e(json["rusage"]);
+
+    std::string const process_name(message.get_parameter("process_name"));
+    std::string const pid(message.get_parameter("pid"));
+    e["process_name"] =                 process_name;
+    e["pid"] =                          pid;
+    e["user_time"] =                    message.get_parameter("user_time");
+    e["system_time"] =                  message.get_parameter("system_time");
+    e["maxrss"] =                       message.get_parameter("maxrss");
+    e["minor_page_fault"] =             message.get_parameter("minor_page_fault");
+    e["major_page_fault"] =             message.get_parameter("major_page_fault");
+    e["in_block"] =                     message.get_parameter("in_block");
+    e["out_block"] =                    message.get_parameter("out_block");
+    e["volontary_context_switches"] =   message.get_parameter("volontary_context_switches");
+    e["involontary_context_switches"] = message.get_parameter("involontary_context_switches");
+
+    time_t const start_date(time(nullptr));
+
+    // add the date to this result
     //
-    f_child_pid = fork_child();
-    if(f_child_pid != 0)
+    e["date"] = start_date;
+
+    std::string const data(json.get_value()->to_string().to_utf8());
+
+    // save data
+    //
+    std::string filename(data_path);
+    filename += "/rusage/";
+    filename += process_name;
+    filename += '-';
+    filename += (start_date / 3600) % 24;
+    filename += ".json";
+
+    snapdev::file_contents out(filename);
+    out.contents(data);
+    if(!out.write_all())
     {
-        int const e(errno);
-
-        // parent process
-        //
-        if(f_child_pid == -1)
-        {
-            // we do not try again, we just abandon the whole process
-            //
-            SNAP_LOG_ERROR
-                << "watchdog_child::record_usage() could not create child process, fork() failed with errno: "
-                << e
-                << " -- "
-                << strerror(e)
-                << "."
-                << SNAP_LOG_SEND;
-            return false;
-        }
-        return true;
-    }
-
-    // we are the child, run the actual record_usage() function
-    try
-    {
-        f_ready = false;
-
-        // on fork() we lose the configuration so we have to reload it
-        //
-        // TBD: with the snaplogger, I don't think this happens
-        //
-        //logging::reconfigure();
-
-        init_start_date();
-
-        auto server(std::dynamic_pointer_cast<server>(f_server.lock()));
-        if(server == nullptr)
-        {
-            throw snap_child_exception_no_server("watchdog_child::record_usage(): The f_server weak pointer could not be locked");
-        }
-
-        if(server->snapdbproxy_addr().isEmpty())
-        {
-            // no need to test if the address is empty
-            //
-            f_has_cassandra = false;
-        }
-        else
-        {
-            f_has_cassandra = connect_cassandra(false);
-        }
-
-        QDomDocument doc("watchdog");
-        QDomElement parent(snap_dom::create_element(doc, "watchdog"));
-        QDomElement e(snap_dom::create_element(parent, "rusage"));
-
-        QString const process_name(toQString(message.get_parameter("process_name")));
-        QString const pid(toQString(message.get_parameter("pid")));
-        e.setAttribute("process_name",                  process_name);
-        e.setAttribute("pid",                           pid);
-        e.setAttribute("user_time",                     message.get_parameter("user_time"));
-        e.setAttribute("system_time",                   message.get_parameter("system_time"));
-        e.setAttribute("maxrss",                        message.get_parameter("maxrss"));
-        e.setAttribute("minor_page_fault",              message.get_parameter("minor_page_fault"));
-        e.setAttribute("major_page_fault",              message.get_parameter("major_page_fault"));
-        e.setAttribute("in_block",                      message.get_parameter("in_block"));
-        e.setAttribute("out_block",                     message.get_parameter("out_block"));
-        e.setAttribute("volontary_context_switches",    message.get_parameter("volontary_context_switches"));
-        e.setAttribute("involontary_context_switches",  message.get_parameter("involontary_context_switches"));
-
-        int64_t const start_date(get_start_date());
-
-        // add the date in us to this result
-        //
-        QDomElement watchdog_tag(snap_dom::create_element(doc, "watchdog"));
-        watchdog_tag.setAttribute("date", static_cast<qlonglong>(start_date));
-        QString const result = doc.toString(-1);
-
-        // save the result in a file first
-        //
-        QString data_path(server->get_parameter(watchdog::get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_DATA_PATH)));
-        if(!data_path.isEmpty())
-        {
-            data_path += QString("/rusage/%1.xml").arg(pid);
-
-            std::ofstream out;
-            out.open(data_path.toUtf8().data(), std::ios_base::binary);
-            if(out.is_open())
-            {
-                // result already ends with a "\n"
-                //
-                out << result;
-            }
-        }
-
-        int64_t const ttl(server->get_statistics_ttl());
-        if(f_has_cassandra
-        && ttl > 0)
-        {
-            QString const table_name(get_name(watchdog::name_t::SNAP_NAME_WATCHDOG_SERVERSTATS));
-            libdbproxy::table::pointer_t table(f_context->getTable(table_name));
-
-            libdbproxy::value value;
-            value.setStringValue(result);
-            value.setTtl(ttl);
-            QString const cell_key(QString("%1::%2").arg(process_name).arg(start_date));
-            table->getRow(QString::fromUtf8(server->get_server_name().c_str()) + "/rusage")->getCell(cell_key)->setValue(value);
-        }
-
-        // the child has to exit()
-        exit(0);
-        snapdev::NOT_REACHED();
-    }
-    catch(snap_exception const & e)
-    {
-        SNAP_LOG_FATAL
-            << "watchdog_child::record_usage(): exception caught "
-            << e.what()
+        SNAP_LOG_WARNING
+            << "sitter::record_usage(): could not save data to \""
+            << filename
+            << "\"."
             << SNAP_LOG_SEND;
     }
-    catch(std::exception const & e)
-    {
-        SNAP_LOG_FATAL
-            << "watchdog_child::record_usage(): exception caught "
-            << e.what()
-            << SNAP_LOG_SEND;
-    }
-    catch(...)
-    {
-        SNAP_LOG_FATAL
-            << "watchdog_child::record_usage(): unknown exception caught!"
-            << SNAP_LOG_SEND;
-    }
-    exit(1);
-    snapdev::NOT_REACHED();
-    return false; // not reached, true or false is pretty much the same here
 }
 
 
-/** \brief Return the child pid.
+/** \brief Mark the server as not having errors.
  *
- * This function can be used to retrieve the PID of the child process.
- * The child is created after when the run_watchdog_plugins() is called.
- * Until then it is -1. Note that in the child process, this function
- * will return 0.
- *
- * \return The child process identifier.
+ * This function clears the "has errors" flag to false. It gets called before
+ * the plugins process_watch().
  */
-pid_t watchdog_child::get_child_pid() const
+void server::clear_errors()
 {
-    return f_child_pid;
+    f_error_count = 0;
+    f_max_error_priority = 0;
 }
 
 
@@ -2543,10 +1514,17 @@ void server::append_error(
     , std::string const & message
     , int priority)
 {
+    if(priority > f_max_error_priority)
+    {
+        f_max_error_priority = priority;
+    }
+    ++f_error_count;
+
     // log the error so we have a trace
     //
-    std::string clean_message(message);
-    clean_message.replace("\n", " -- ");
+    std::string clean_message(snapdev::string_replace_many(
+              message
+            , { { "\n", " -- " } }));
     SNAP_LOG_ERROR
         << "plugin \""
         << plugin_name
@@ -2575,65 +1553,20 @@ void server::append_error(
     err[as2js::String("plugin_name")] = plugin_name;
     err["message"] = message;
     err["priority"] = priority;
-
-// TBD: can we do that at the point we actually send the message
-//    // handle new lines so the emails look good, but keep the rest as
-//    // plain text
-//    //
-//    QStringList lines(message.split("\n"));
-//
-//    if(!lines.empty())
-//    {
-//        QDomText text(doc.createTextNode(lines[0]));
-//        msg.appendChild(text);
-//        for(int l(1); l < lines.size(); ++l)
-//        {
-//            QDomElement br(doc.createElement("br"));
-//            msg.appendChild(br);
-//
-//            QDomText following_line(doc.createTextNode(lines[l]));
-//            msg.appendChild(following_line);
-//        }
-//    }
 }
 
 
-
-
-server::pointer_t watchdog_child::get_server()
+int server::get_error_count() const
 {
-    auto server(std::dynamic_pointer_cast<server>(f_server.lock()));
-    if(server == nullptr)
-    {
-        throw no_server("watchdog_child::get_server(): The f_server weak pointer could not be locked");
-    }
-    return server;
+    return f_error_count;
 }
 
 
-/** \brief Make sure to clean up then exit the child process.
- *
- * This function cleans up the child and then calls the
- * server::exit() function to give the server a chance to
- * also clean up. Then it exists by calling the exit(3)
- * function of the C library.
- *
- * \note
- * We reimplement the snap_child::exit() function because
- * the default function sends a message to the watchdog and
- * that would create a loop. So to avoid that loop, we
- * reimplement the function without sending the message.
- *
- * \param[in] code  The exit code, generally 0 or 1.
- */
-void watchdog_child::exit(int code)
+int server::get_max_error_priority() const
 {
-    // make sure the socket data is pushed to the caller
-    f_client.reset();
-
-    server::exit(code);
-    snapdev::NOT_REACHED();
+    return f_max_error_priority;
 }
+
 
 
 } // namespace snap

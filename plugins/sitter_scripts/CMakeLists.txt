@@ -56,7 +56,7 @@ install(
         README.md
         sitter-script-starter
 
-    LIBRARY DESTINATION
+    DESTINATION
         lib/sitter/scripts
 )
 

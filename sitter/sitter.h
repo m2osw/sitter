@@ -17,6 +17,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+// self
+//
+#include    <sitter/sitter_worker.h>
+
+
 // eventdispatcher
 //
 #include    <eventdispatcher/connection_with_send_message.h>
@@ -38,6 +43,11 @@
 // cppprocess
 //
 #include    <cppprocess/process_list.h>
+
+
+// cppthreadd
+//
+#include    <cppthread/thread.h>
 
 
 // as2js
@@ -78,7 +88,7 @@ namespace sitter
 
 
 
-class watchdog_child;
+//class watchdog_child;
 
 
 
@@ -93,13 +103,12 @@ class server
 public:
     typedef std::shared_ptr<server>         pointer_t;
 
-                        server(int argc, char const * argv[]);
+                        server(int argc, char * argv[]);
 
+    static void         set_instance(pointer_t s);
     static pointer_t    instance();
-    void                watchdog();
+    int                 run();
 
-    time_t              get_start_date() const;
-    virtual void        show_version();
     int64_t             get_statistics_period() const { return f_statistics_period; }
     int64_t             get_statistics_ttl() const { return f_statistics_ttl; }
     void                ready(ed::message & message);
@@ -123,8 +132,8 @@ public:
     void                process_tick();
     void                process_sigchld();
 
-    void                msg_nocassandra(ed::message & message);
-    void                msg_cassandraready(ed::message & message);
+    //void                msg_nocassandra(ed::message & message);
+    //void                msg_cassandraready(ed::message & message);
     void                msg_rusage(ed::message & message);
     void                msg_reload_config(ed::message & message);
 
@@ -135,11 +144,14 @@ public:
                             , std::string const & process_name
                             , int priority);
 
+    void                clear_errors();
     void                append_error(
                               as2js::JSON::JSONValueRef & json_ref
                             , std::string const & plugin_name
                             , std::string const & message
                             , int priority = 50);
+    int                 get_error_count() const;
+    int                 get_max_error_priority() const;
 
     int64_t             get_error_report_settle_time() const;
     int64_t             get_error_report_low_priority() const;
@@ -149,15 +161,18 @@ public:
     int64_t             get_error_report_critical_priority() const;
     int64_t             get_error_report_critical_span() const;
 
+    void                set_ticks(int ticks);
+    int                 get_ticks() const;
+
 private:
     void                define_server_name();
-    void                init_parameters();
+    bool                init_parameters();
     void                run_watchdog_process();
+    void                record_usage(ed::message const & message);
 
     advgetopt::getopt   f_opts;
     ed::logrotate_extension
                         f_logrotate;
-    time_t const        f_start_date;
     int64_t             f_statistics_frequency = 0;
     int64_t             f_statistics_period = 0;
     int64_t             f_statistics_ttl = 0;
@@ -168,13 +183,19 @@ private:
     int64_t             f_error_report_medium_span = 86400 * 3;
     int64_t             f_error_report_critical_priority = 90;
     int64_t             f_error_report_critical_span = 86400 * 1;
-    std::vector<std::shared_ptr<watchdog_child>>
-                        f_processes = std::vector<std::shared_ptr<watchdog_child>>();
+    int                 f_error_count = 0;
+    int                 f_max_error_priority = 0;
     bool                f_stopping = false;
     bool                f_force_restart = false;
     time_t              f_snapcommunicator_connected = 0;
     time_t              f_snapcommunicator_disconnected = 0;
     std::string         f_cache_path = std::string();
+    int                 f_ticks = 0;
+
+    sitter_worker::pointer_t
+                        f_worker = sitter_worker::pointer_t();
+    cppthread::thread::pointer_t
+                        f_worker_thread = cppthread::thread::pointer_t();
 };
 #pragma GCC diagnostic pop
 

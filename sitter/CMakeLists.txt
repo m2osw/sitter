@@ -28,19 +28,35 @@ configure_file(
 )
 
 add_library(${PROJECT_NAME} SHARED
-    sitter.cpp                            # Implements the core of the watchdog server
-
     flags.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
+    sitter.cpp
+    sitter_worker.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        ${SNAPDEV_INCLUDE_DIR}
+        ${AS2JS_INCLUDE_DIRS}
+        ${CPPPROCESS_INCLUDE_DIRS}
+        ${EDHTTP_INCLUDE_DIRS}
+        ${EVENTDISPATCHER_INCLUDE_DIRS}
+        ${LIBEXCEPT_INCLUDE_DIRS}
+        ${LIBMIMEMAIL_INCLUDE_DIRS}
+        ${SERVERPLUGINS_INCLUDE_DIRS}
+        ${SNAPDEV_INCLUDE_DIRS}
 )
 
+message("EDHTTP_LIBRARIES=${EDHTTP_LIBRARIES}")
+message("AS2JS_LIBRARIES=${AS2JS_LIBRARY}")
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
+        ${AS2JS_LIBRARIES}
+        ${CPPPROCESS_LIBRARIES}
+        ${EDHTTP_LIBRARIES}
+        ${EVENTDISPATCHER_LIBRARIES}
+        ${LIBEXCEPT_LIBRARIES}
+        ${LIBMIMEMAIL_LIBRARIES}
+        ${SERVERPLUGINS_LIBRARIES}
         ${SNAPLOGGER_LIBRARIES}
 )
 

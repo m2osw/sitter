@@ -20,9 +20,19 @@
 #include    <sitter/sitter.h>
 
 
+// advgetopt
+//
+#include    <advgetopt/exception.h>
+
+
 // snaplogger
 //
 #include    <snaplogger/message.h>
+
+
+// eventdispatcher
+//
+#include    <eventdispatcher/signal_handler.h>
 
 
 // libexcept
@@ -48,13 +58,14 @@ int main(int argc, char * argv[])
     try
     {
         sitter::server::pointer_t s(std::make_shared<sitter::server>(argc, argv));
+        s->set_instance(s);
         return s->run();
     }
     catch(advgetopt::getopt_exit const & e)
     {
         return e.code();
     }
-    catch(libexcept::exception const & e)
+    catch(libexcept::exception_t const & e)
     {
         SNAP_LOG_FATAL
             << "sitter: libexcept::exception caught: "
