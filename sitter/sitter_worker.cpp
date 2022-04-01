@@ -26,13 +26,6 @@
 #include    "sitter/sitter.h"
 #include    "sitter/version.h"
 
-//#include    "sitter/exception.h"
-
-
-// as2js
-//
-//#include    <as2js/json.h>
-
 
 // cppthread
 //
@@ -47,46 +40,18 @@
 // snaplogger
 //
 #include    <snaplogger/logger.h>
-//#include    <snaplogger/message.h>
-//#include    <snaplogger/options.h>
 
 
 // advgetopt
 //
-//#include    <advgetopt/conf_file.h>
 #include    <advgetopt/validator_integer.h>
-
-
-//// libaddr
-////
-//#include    <libaddr/addr_parser.h>
-//
-//
-//// eventdispatcher
-////
-//#include    <eventdispatcher/signal.h>
-//#include    <eventdispatcher/tcp_client_permanent_message_connection.h>
 
 
 // snapdev
 //
 #include    <snapdev/file_contents.h>
 #include    <snapdev/gethostname.h>
-//#include    <snapdev/mkdir_p.h>
-//#include    <snapdev/not_reached.h>
-//#include    <snapdev/not_used.h>
 #include    <snapdev/trim_string.h>
-
-
-//// C++
-////
-//#include    <algorithm>
-//#include    <fstream>
-//
-//
-//// C
-////
-//#include    <sys/wait.h>
 
 
 // last include

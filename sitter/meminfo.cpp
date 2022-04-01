@@ -20,35 +20,35 @@
 
 // self
 //
-#include "snapwebsites/meminfo.h"
+#include    "sitter/meminfo.h"
 
 
 // snaplogger lib
 //
-#include <snaplogger/message.h>
+#include    <snaplogger/message.h>
 
 
 // snapdev lib
 //
-#include <snapdev/tokenize_string.h>
+#include    <snapdev/tokenize_string.h>
 
 
 // C++ lib
 //
-#include <algorithm>
-#include <fstream>
-#include <iostream>
-#include <map>
+#include    <algorithm>
+#include    <fstream>
+#include    <iostream>
+#include    <map>
 
 
 // last include
 //
-#include <snapdev/poison.h>
+#include    <snapdev/poison.h>
 
 
 
 
-namespace snap
+namespace sitter
 {
 
 
@@ -195,5 +195,5 @@ meminfo_t get_meminfo()
 }
 
 
-} // snap namespace
+} // namespace sitter
 // vim: ts=4 sw=4 et

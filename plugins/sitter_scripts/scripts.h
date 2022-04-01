@@ -21,7 +21,7 @@
 
 // self
 //
-#include    "sitter/sitter.h"
+#include    <sitter/sitter.h>
 
 
 // serverplugins

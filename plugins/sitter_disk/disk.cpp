@@ -20,6 +20,8 @@
 //
 #include    "disk.h"
 
+#include    "names.h"
+
 
 // snaplogger
 //

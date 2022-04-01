@@ -29,6 +29,7 @@ configure_file(
 
 add_library(${PROJECT_NAME} SHARED
     flags.cpp
+    meminfo.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     sitter.cpp
     sitter_worker.cpp
