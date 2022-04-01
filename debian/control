@@ -1,9 +1,7 @@
 Source: sitter
 Priority: extra
 Maintainer: Alexis Wilke <alexis@m2osw.com>
-Build-Depends: advgetopt-dev (>= 2.0.35.0~bionic),
-    as2js-dev (>= 0.1.36.0~bionic),
-    cmake,
+Build-Depends: cmake,
     cppprocess-dev (>= 1.1.51.0~bionic),
     cppthread-dev (>= 1.0.0.0~bionic),
     debhelper,
@@ -12,6 +10,8 @@ Build-Depends: advgetopt-dev (>= 2.0.35.0~bionic),
     eventdispatcher-dev (>= 1.1.51.0~bionic),
     graphviz,
     libaddr-dev (>= 1.0.28.0~bionic),
+    libadvgetopt-dev (>= 2.0.35.0~bionic),
+    libas2js-dev (>= 0.1.36.0~bionic),
     libexcept-dev (>= 1.1.12.0~bionic),
     libmimemail-dev (>= 1.0.0.0~bionic),
     libprocps4-dev,
