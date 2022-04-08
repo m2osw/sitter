@@ -125,7 +125,7 @@ public:
 
     // connection_with_send_message overloads
     //
-    virtual bool        send_message(ed::message const & message, bool cache = false) override;
+    virtual bool        send_message(ed::message & message, bool cache = false) override;
 
     // internal functions (these are NOT virtual)
     // 

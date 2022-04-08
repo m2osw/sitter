@@ -477,7 +477,7 @@ messenger::pointer_t             g_messenger;
 messenger::messenger(server::pointer_t s, addr::addr const & a)
     : tcp_client_permanent_message_connection(
               a
-            , ed::tcp_bio_client::mode_t::MODE_PLAIN
+            , ed::mode_t::MODE_PLAIN
             , ed::tcp_client_permanent_message_connection::DEFAULT_PAUSE_BEFORE_RECONNECTING
             , false) // do not use a separate thread, we do many fork()'s
     , f_server(s)
@@ -712,7 +712,7 @@ int server::run()
  * This function is an override which allows the watchdog server to
  * handle messages through the dispatcher.
  */
-bool server::send_message(ed::message const & message, bool cache)
+bool server::send_message(ed::message & message, bool cache)
 {
     return g_messenger->send_message(message, cache);
 }
