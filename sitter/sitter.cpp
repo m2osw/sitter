@@ -478,7 +478,7 @@ messenger::messenger(server::pointer_t s, addr::addr const & a)
     : tcp_client_permanent_message_connection(
               a
             , ed::mode_t::MODE_PLAIN
-            , ed::tcp_client_permanent_message_connection::DEFAULT_PAUSE_BEFORE_RECONNECTING
+            , ed::DEFAULT_PAUSE_BEFORE_RECONNECTING
             , false) // do not use a separate thread, we do many fork()'s
     , f_server(s)
 {
