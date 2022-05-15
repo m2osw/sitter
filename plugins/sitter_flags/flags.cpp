@@ -22,9 +22,9 @@
 #include    "flags.h"
 
 
-// sitter
+// communicatord
 //
-#include    <sitter/flags.h>
+#include    <communicatord/flags.h>
 
 
 // snaplogger
@@ -92,7 +92,7 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
     // check whether we have any flags that are currently raised
     // if not, we just return ASAP
     //
-    sitter::flag::list_t list(sitter::flag::load_flags());
+    communicatord::flag::list_t list(sitter::flag::load_flags());
     if(list.empty())
     {
         return;
