@@ -43,12 +43,12 @@
 #include    <advgetopt/conf_file.h>
 
 
-// snaplogger lib
+// snaplogger
 //
 #include    <snaplogger/message.h>
 
 
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/gethostname.h>
 #include    <snapdev/glob_to_list.h>
@@ -57,7 +57,7 @@
 #include    <snapdev/tokenize_string.h>
 
 
-// boost lib
+// boost
 //
 #include    <boost/algorithm/string.hpp>
 
@@ -123,8 +123,8 @@ std::string get_path_to_flag_files()
  *
  * This function creates a new flag in memory.
  *
- * New flags are generally created using one of the SNAP_FLAG_UP()
- * or the SNAP_FLAG_DOWN() macros, which will automatically
+ * New flags are generally created using one of the SITTER_FLAG_UP()
+ * or the SITTER_FLAG_DOWN() macros, which will automatically
  * initialize the flag, especially the source filename, the function name,
  * and the line number where the flag is being created, and the status
  * which the macro describes.
@@ -163,13 +163,13 @@ flag::flag(
 /** \brief Load a flag from file.
  *
  * When this constructor is used, the flag gets loaded from file.
- * Flags use a snap_config file to handle their permanent data.
+ * Flags use a advgetopt::conf_file to handle their permanent data.
  *
- * The fields offered in the snap_flag object are translated
+ * The fields offered in the flag object are translated
  * in a configuration field. This function reads the data with
- * a snap_file object and converts it to snap_flag data.
+ * an advgetopt::conf_file object and converts it to flag data.
  *
- * \param[in] filename  The nane of the file to load.
+ * \param[in] filename  The name of the file to load.
  */
 flag::flag(std::string const & filename)
     : f_filename(filename)
@@ -321,7 +321,7 @@ flag & flag::set_function(std::string const & function)
 /** \brief Set the line number at which the event happened.
  *
  * This parameter is used to save the line at which the function
- * used one of the snap_flag macros.
+ * used one of the flag macros.
  *
  * By default the value is set to zero. If never called, then this
  * is a way to know that no line number was defined.
@@ -541,7 +541,7 @@ std::string const & flag::get_source_file() const
  *
  * If you loaded the flag files, then this is defined from the constructor.
  *
- * If you created a snap_flag object from scratch, then the filename
+ * If you created a flag object from scratch, then the filename
  * is built from the unit, section, and flag names as follow:
  *
  * \code
@@ -578,7 +578,7 @@ std::string const & flag::get_function() const
  * This is for debug purposes so one can easily find exactly what code
  * generated which flag.
  *
- * \return The line number where th snap_flag object is created.
+ * \return The line number where the flag object is created.
  */
 int flag::get_line() const
 {
@@ -588,7 +588,7 @@ int flag::get_line() const
 
 /** \brief The actual error message of this flag.
  *
- * A flag is used to tell the snapwatchdog flag plugin that something
+ * A flag is used to tell the sitter flag plugin that something
  * is wrong and requires the administrator to fix it up.
  *
  * The message should be plain text. It may include newline characters.
@@ -625,16 +625,16 @@ int flag::get_priority() const
  * A _manual down_ flag is a flag that the administrator has to turn
  * off manually once the problem was taken cared off.
  *
- * By default, a snap_flag is considered automatic, which means
+ * By default, a flag is considered automatic, which means
  * that the process that raises the flag up for some circumstances
  * will also know how to bring that flag down once the circumstances
  * disappear.
  *
- * This function returns true if the process will never bring its
+ * This function returns true if the process never brings its
  * flag down automatically. This is particularly true if the process
- * use the SNAP_FLAG_UP() macro but never uses the corresponding
- * SNAP_FLAG_DOWN()--corresponding as in with the same first
- * three strings (unit, section, name.)
+ * use the SITTER_FLAG_UP() macro but never uses the corresponding
+ * SITTER_FLAG_DOWN()--corresponding as in with the same first
+ * three strings (unit, section, name).
  *
  * \return true if the flag has to be taken down (deleted) manually.
  *
@@ -731,9 +731,19 @@ int flag::get_count() const
 
 /** \brief Get the version used to create this flag file.
  *
- * When the flag file gets saved, the current version of snapwebsites gets
- * saved in the file as the "version" field. This function returns that
- * value.
+ * When the flag file gets saved, the current version of the sitter project
+ * gets saved in the file as the "version" field. This function returns that
+ * value. You can compare the value against:
+ *
+ * \code
+ *     // dynamically get the version of the sitter library
+ *     //
+ *     sitter::get_version_string()
+ *
+ *     // statically get the version of the sitter library at compile time
+ *     //
+ *     SITTER_VERSION_STRING
+ * \endcode
  *
  * Note that if the file gets updated, then the version of the newest write
  * is used in the file.
@@ -764,8 +774,8 @@ std::string const & flag::get_version() const
  *
  * \attention
  * Your implementation of the flags must make sure to use the
- * SNAP_FLAG_UP() when an error is detected and use
- * the SNAP_FLAG_DOWN() when the error is not detected
+ * SITTER_FLAG_UP() when an error is detected and use
+ * the SITTER_FLAG_DOWN() when the error is not detected
  * anymore. This is important since the file needs to disappear
  * once the problem was resolved.
  *

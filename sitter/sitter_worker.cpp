@@ -15,7 +15,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// Snap Websites Server -- snap watchdog library
 
 
 // self
@@ -188,7 +187,7 @@ void sitter_worker::run_plugins()
         {
             err_once = false;
             SNAP_LOG_ERROR
-                << "sitter_worker::run_plugins() generated a completely empty result. This can happen if you did not define any watchdog plugins."
+                << "sitter_worker::run_plugins() generated a completely empty result. This can happen if you did not define any sitter plugins."
                 << SNAP_LOG_SEND;
         }
         return;
@@ -230,7 +229,7 @@ void sitter_worker::report_error(as2js::JSON & json, time_t start_date)
     // server side in snapmanager anyway and also the
     // priorities and span parameters can be changed
     // in the configuration file (search for
-    // `error_report_` parameters in snapwatchdog.conf)
+    // `error_report_` parameters in sitter.conf)
     //
     // note that the span lasts across restarts of the
     // service
@@ -325,7 +324,7 @@ void sitter_worker::report_error(as2js::JSON & json, time_t start_date)
     e.set_to(administrator_email);
     e.set_priority(libmimemail::priority_t::EMAIL_PRIORITY_URGENT);
 
-    std::string subject("snapwatchdog: found ");
+    std::string subject("sitter: found ");
     subject += std::to_string(f_server->get_error_count());
     subject += " error";
     subject += f_server->get_error_count() == 1 ? "" : "s";

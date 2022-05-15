@@ -59,5 +59,6 @@ add_subdirectory(plugins)           # Plug-ins (i.e. modular functionality)
 add_subdirectory(tools)             # Various tools
 add_subdirectory(cmake)             # CMake Config
 add_subdirectory(doc)               # Documentation
+add_subdirectory(tests)             # Unit tests
 
 # vim: ts=4 sw=4 et nocindent

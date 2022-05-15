@@ -5,6 +5,6 @@ project=sitter
 sub_project=processes
 
 [public]
-processes_path="watchdog_processes_path"
+processes_path="sitter_processes_path"
 
 # vim: syntax=dosini

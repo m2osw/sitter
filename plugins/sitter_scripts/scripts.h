@@ -1,12 +1,11 @@
-// Snap Websites Server -- watchdog scripts
-// Copyright (c) 2018-2021  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2013-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/
+// https://snapwebsites.org/project/sitter
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -15,8 +14,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 // self
@@ -34,25 +32,6 @@ namespace sitter
 {
 namespace scripts
 {
-
-
-//enum class name_t
-//{
-//    SNAP_NAME_WATCHDOG_WATCHSCRIPTS_DEFAULT_LOG_SUBFOLDER,
-//    SNAP_NAME_WATCHDOG_WATCHSCRIPTS_LOG_SUBFOLDER,
-//    SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT,
-//    SNAP_NAME_WATCHDOG_WATCHSCRIPTS_OUTPUT_DEFAULT,
-//    SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH,
-//    SNAP_NAME_WATCHDOG_WATCHSCRIPTS_PATH_DEFAULT,
-//    SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER,
-//    SNAP_NAME_WATCHDOG_WATCHSCRIPTS_WATCH_SCRIPT_STARTER_DEFAULT
-//};
-//char const * get_name(name_t name) __attribute__ ((const));
-
-
-
-
-
 
 
 
@@ -78,7 +57,7 @@ private:
                                           as2js::JSON::JSONValue::pointer_t()
                                         , as2js::String());
 
-    std::string             f_watch_script_starter = std::string();
+    std::string             f_script_starter = std::string();
     std::string             f_log_path = std::string();
     std::string             f_log_subfolder = std::string();
 

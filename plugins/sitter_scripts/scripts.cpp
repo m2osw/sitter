@@ -1,12 +1,11 @@
-// Snap Websites Server -- watchdog scripts
-// Copyright (c) 2018-2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2013-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/
+// https://snapwebsites.org/project/sitter
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -14,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 // self
@@ -112,10 +110,10 @@ void scripts::bootstrap()
     SERVERPLUGINS_LISTEN(scripts, "server", server, process_watch, boost::placeholders::_1);
 
     sitter::server::pointer_t server(plugins()->get_server<sitter::server>());
-    f_watch_script_starter = server->get_server_parameter(g_name_scripts_starter);
-    if(f_watch_script_starter.empty())
+    f_script_starter = server->get_server_parameter(g_name_scripts_starter);
+    if(f_script_starter.empty())
     {
-        f_watch_script_starter = g_name_scripts_starter_default;
+        f_script_starter = g_name_scripts_starter_default;
     }
 
     // setup a variable that our scripts can use to save data as they
@@ -128,44 +126,44 @@ void scripts::bootstrap()
     {
         scripts_output = g_name_scripts_output_default;
     }
-    setenv("WATCHDOG_WATCHSCRIPTS_OUTPUT", scripts_output.c_str(), 1);
+    setenv("SITTER_SCRIPTS_OUTPUT", scripts_output.c_str(), 1);
 
     f_log_path = server->get_server_parameter(g_name_scripts_log_path);
     if(f_log_path.empty())
     {
         f_log_path = g_name_scripts_default_log_path;
     }
-    setenv("WATCHDOG_WATCHSCRIPTS_LOG_PATH", f_log_path.c_str(), 1);
+    setenv("SITTER_SCRIPTS_LOG_PATH", f_log_path.c_str(), 1);
 
     f_log_subfolder = server->get_server_parameter(g_name_scripts_log_subfolder);
     if(f_log_subfolder.empty())
     {
         f_log_subfolder = g_name_scripts_default_log_subfolder;
     }
-    setenv("WATCHDOG_WATCHSCRIPTS_LOG_SUBFOLDER", f_log_subfolder.c_str(), 1);
+    setenv("SITTER_SCRIPTS_LOG_SUBFOLDER", f_log_subfolder.c_str(), 1);
 
-    f_scripts_output_log = f_log_path + "/" + f_log_subfolder + "/snapwatchdog-scripts.log";
-    f_scripts_error_log = f_log_path + "/" + f_log_subfolder + "/snapwatchdog-scripts-errors.log";
+    f_scripts_output_log = f_log_path + "/" + f_log_subfolder + "/sitter-scripts.log";
+    f_scripts_error_log = f_log_path + "/" + f_log_subfolder + "/sitter-scripts-errors.log";
 }
 
 
-/** \brief Process this watchdog data.
+/** \brief Process this sitter data.
  *
- * This function runs this watchdog.
+ * This function runs this plugin actual check.
  *
- * The process is to go through all the script in the snapwatchdog directory
+ * The process is to go through all the script in the sitter directory
  * and run them. If they exit with 2, then they detected a problem and we
  * send an email to the administrator. If they exit with 1, the script is
  * bogus and we send an email to the administrator. If they exit with 0,
  * no problem was discovered yet.
  *
- * The scripts are standard shell scripts. The snapwatchdog environment
- * offers additional shell commands, though, to ease certain things that
+ * The scripts are standard shell scripts. The sitter environment
+ * offers additional shell commands to ease certain things that
  * are otherwise very complicated.
  *
- * The results are also saved in the `doc` XML data.
+ * The results are also saved in the JSON document.
  *
- * \param[in] doc  The document.
+ * \param[in] json  The document where the results are collected.
  */
 void scripts::on_process_watch(as2js::JSON::JSONValueRef & json)
 {
@@ -219,12 +217,12 @@ void scripts::process_script(int index, std::string script_filename)
 
     // run the script
     //
-    cppprocess::process p("watchscript");
+    cppprocess::process p("sitterscript");
 
     // Note: scripts that do not have the execution permission set are
     //       started with /bin/sh
     //
-    p.set_command(f_watch_script_starter);
+    p.set_command(f_script_starter);
     p.add_argument(script_filename);
 
     cppprocess::io_capture_pipe::pointer_t output_pipe(std::make_shared<cppprocess::io_capture_pipe>());
@@ -317,7 +315,7 @@ void scripts::process_script(int index, std::string script_filename)
  * The function generates an email like header for the output or
  * error message. The header includes information aboutwhen the
  * output was generated, which script it is wrong, which
- * version of the snapwatchdog it comes from and an IP address.
+ * version of the sitter daemon it comes from and an IP address.
  *
  * \param[in] type  The type of header (Output or Error)
  *
@@ -327,7 +325,7 @@ std::string scripts::generate_header(std::string const & type)
 {
     std::string header =
           std::string("--- ") + type + " -----------------------------------------------------------\n"
-          "Snap-Watchdog-Version: " SITTER_VERSION_STRING "\n"
+          "Sitter-Version: " SITTER_VERSION_STRING "\n"
           "Output-Type: " + type + "\n"
           "Date: " + format_date(f_start_date) + "\n"
           "Script: " + f_script_filename + "\n";
@@ -341,9 +339,9 @@ std::string scripts::generate_header(std::string const & type)
         header += "\n";
     }
 
-    // if we have a properly installed snapcommunicator use that IP
+    // if we have a properly installed communicatord use that IP
     //
-    advgetopt::conf_file_setup setup("/etc/snapwebsites/snapcommunicator.conf");
+    advgetopt::conf_file_setup setup("/etc/communicatord/communicatord.conf");
     advgetopt::conf_file::pointer_t config(advgetopt::conf_file::get_conf_file(setup));
     std::string const my_ip(config->get_parameter("my_address"));
     if(!my_ip.empty())
@@ -354,7 +352,7 @@ std::string scripts::generate_header(std::string const & type)
     }
     else
     {
-        // no snapcommunicator defined "my_address", then show
+        // no communicatord defined "my_address", then show
         // all the IPs on this computer
         //
         addr::iface::vector_t const ips(addr::iface::get_local_addresses());

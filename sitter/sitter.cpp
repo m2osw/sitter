@@ -15,7 +15,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// Snap Websites Server -- snap watchdog library
 
 
 // self
@@ -87,23 +86,30 @@
 
 
 /** \file
- * \brief This file represents the Snap! Watchdog daemon.
+ * \brief This file represents the Sitter daemon.
  *
- * The snapwatchdog.cpp and corresponding header file represents the Snap!
- * Watchdog daemon. This is not exactly a server, although it somewhat
- * (mostly) behaves like one. This tool is used as a daemon to make
- * sure that various resources on a server remain available as expected.
+ * The sitter.cpp and sitter.h files represents the sitter daemon.
+ *
+ * This is not exactly a service, although it somewhat (mostly) behaves
+ * like one. The sitter is used as a daemon to make sure that various
+ * resources on a server remain available as expected.
  */
 
 
+
 /** \mainpage
- * \brief Snap! Watchdog Documentation
+ * \brief Sitter Documentation
  *
  * \section introduction Introduction
  *
- * The Snap! Watchdog is a tool that works in unisson with Snap! C++.
- * It is used to monitor all the servers used with Snap! in order to
+ * The Sitter is a tool that works in unisson with Snap! C++.
+ *
+ * It is used to monitor all the services used by Snap! C++ in order to
  * ensure that they all continuously work as expected.
+ *
+ * It also gathers system information such as how busy a server is so as
+ * to allow proxying requests between front end servers to better distribute
+ * load.
  */
 
 
@@ -131,10 +137,10 @@ namespace
 server::pointer_t               g_server;
 
 
-/** \brief The snap communicator singleton.
+/** \brief The ed::communicator singleton.
  *
- * This variable holds a copy of the snap communicator singleton.
- * It is a null pointer until the watchdog() function is called.
+ * This variable holds a copy of the ed::communicator singleton.
+ * It is a null pointer until the sitter gets initialized.
  */
 ed::communicator::pointer_t     g_communicator;
 
@@ -376,7 +382,7 @@ public:
                                 tick_timer(server::pointer_t s, int64_t interval);
     virtual                     ~tick_timer() override {}
 
-    // snap::snap_communicator::snap_timer implementation
+    // ed::timer implementation
     virtual void                process_timeout() override;
 
 private:
@@ -418,8 +424,8 @@ tick_timer::tick_timer(server::pointer_t s, int64_t interval)
 /** \brief The timeout happened.
  *
  * This function gets called once every minute (although the interval can
- * be changed, it is 1 minute by default.) Whenever it happens, the
- * watchdog runs all the plugins once.
+ * be changed, it is 1 minute by default). Whenever it happens, the
+ * sitter runs all the plugins once.
  */
 void tick_timer::process_timeout()
 {
@@ -430,7 +436,7 @@ void tick_timer::process_timeout()
 
 
 
-/** \brief Handle messages from the Snap Communicator server.
+/** \brief Handle messages from the communicatord server.
  *
  * This class is an implementation of the TCP client message connection
  * so we can handle incoming messages.
@@ -444,7 +450,7 @@ public:
                                 messenger(server::pointer_t s, addr::addr const & a);
     virtual                     ~messenger() override {}
 
-    // snap::snap_communicator::snap_tcp_client_permanent_message_connection implementation
+    // ed::tcp_client_permanent_message_connection implementation
     virtual void                process_connection_failed(std::string const & error_message) override;
     virtual void                process_connected() override;
 
@@ -463,74 +469,81 @@ messenger::pointer_t             g_messenger;
 
 /** \brief The messenger initialization.
  *
- * The messenger is a connection to the snapcommunicator server.
+ * The messenger is a connection to the communicatord service.
  *
  * In most cases we receive STOP and LOG messages from it. We implement
  * a few other messages too (HELP, READY...)
  *
- * We use a permanent connection so if the snapcommunicator restarts
+ * We use a permanent connection so if the communicatord restarts
  * for whatever reason, we reconnect automatically.
  *
- * \param[in] s  The snap watchdog server we are listening for.
- * \param[in] a  The address to connect to. Most often it is 127.0.0.1:4040.
+ * \param[in] s  The sitter server we are listening for.
+ * \param[in] address  The address to connect to, most often, 127.0.0.1:4040.
  */
-messenger::messenger(server::pointer_t s, addr::addr const & a)
+messenger::messenger(server::pointer_t s, addr::addr const & address)
     : tcp_client_permanent_message_connection(
-              a
+              address
             , ed::mode_t::MODE_PLAIN
             , ed::DEFAULT_PAUSE_BEFORE_RECONNECTING
-            , false) // do not use a separate thread, we do many fork()'s
+            , false // do not use a separate thread, we do many fork()'s
+            , "sitter")
     , f_server(s)
 {
     set_name("messenger");
 }
 
 
-/** \brief The messenger could not connect to snapcommunicator.
+/** \brief The messenger could not connect to communicatord.
  *
  * This function is called whenever the messengers fails to
- * connect to the snapcommunicator server. This could be
- * because snapcommunicator is not running or because the
- * information given to the snapwatchdog is wrong...
+ * connect to the communicatord server. This could be
+ * because communicatord is not running or because the
+ * information given to the sitter is wrong...
  *
- * With systemd the snapcommunicator should already be running
+ * With systemd the communicatord should already be running
  * although this is not 100% guaranteed. So getting this
  * error from time to time is considered normal.
+ *
+ * \note
+ * This error happens whenever the communicatod is upgraded
+ * since the packager stops the process, upgrades, then restarts
+ * it. The sitter automatically reconnects once possible.
  *
  * \param[in] error_message  An error message.
  */
 void messenger::process_connection_failed(std::string const & error_message)
 {
     SNAP_LOG_ERROR
-        << "connection to snapcommunicator failed ("
+        << "connection to communicatord failed ("
         << error_message
         << ")"
         << SNAP_LOG_SEND;
 
     // also call the default function, just in case
     tcp_client_permanent_message_connection::process_connection_failed(error_message);
-    f_server->set_snapcommunicator_connected(false);
+    f_server->set_communicatord_connected(false);
 }
 
 
-/** \brief The connection was established with Snap! Communicator.
+/** \brief The connection was established with communicatord.
  *
- * Whenever the connection is establied with the Snap! Communicator,
+ * Whenever the connection is establied with the communicatord,
  * this callback function is called.
  *
- * The messenger reacts by REGISTERing "snapwatchdog" service with the
- * Snap! Communicator.
+ * The messenger reacts by REGISTERing the "sitter" service with the
+ * communicatord.
  */
 void messenger::process_connected()
 {
     tcp_client_permanent_message_connection::process_connected();
+    register_service();
 
-    ed::message register_backend;
-    register_backend.set_command("REGISTER");
-    register_backend.add_parameter("service", "sitter");
-    register_backend.add_version_parameter();
-    send_message(register_backend);
-    f_server->set_snapcommunicator_connected(true);
+    //ed::message register_backend;
+    //register_backend.set_command("REGISTER");
+    //register_backend.add_parameter("service", "sitter");
+    //register_backend.add_version_parameter();
+    //send_message(register_backend);
+    f_server->set_communicatord_connected(true);
 }
 
 
@@ -540,10 +553,10 @@ void messenger::process_connected()
 
 
 
-/** \brief List of snapwatchdog commands
+/** \brief List of sitter commands
  *
- * The following table defines the commands understood by snapwatchdog
- * that are not defined as a default by add_snap_communicator_commands().
+ * The following table defines the commands understood by the sitter service
+ * that are not defined as a default by the ed::dispatcher implementation.
  */
 ed::dispatcher<server>::dispatcher_match::vector_t const g_sitter_service_messages =
 {
@@ -572,7 +585,7 @@ server::server(int argc, char * argv[])
     : dispatcher(this, g_sitter_service_messages)
     , f_opts(g_options_environment)
     , f_logrotate(f_opts, "127.0.0.1", 4988)
-    , f_snapcommunicator_disconnected(time(nullptr))
+    , f_communicatord_disconnected(time(nullptr))
 {
     snaplogger::add_logger_options(f_opts);
     f_logrotate.add_logrotate_options();
@@ -610,9 +623,9 @@ void server::set_instance(pointer_t s)
 }
 
 
-/** \brief Retrieve a pointer to the watchdog server.
+/** \brief Retrieve a pointer to the sitter server.
  *
- * This function retrieve an instance pointer of the watchdog server.
+ * This function retrieve an instance pointer of the sitter server.
  * If the instance does not exist yet, then it gets created. A
  * server is also a plugin which is named "server".
  *
@@ -633,12 +646,12 @@ server::pointer_t server::instance()
 }
 
 
-/** \brief Finish watchdog initialization and start the event loop.
+/** \brief Finish sitter initialization and start the event loop.
  *
  * This function finishes the initialization such as defining the
  * server name, check that cassandra is available, and create various
  * connections such as the messenger to communicate with the
- * snapcommunicator service.
+ * communicatord service.
  */
 int server::run()
 {
@@ -663,22 +676,21 @@ int server::run()
     g_interrupt.reset(new interrupt(instance()));
     g_communicator->add_connection(g_interrupt);
 
-    // get the snapcommunicator IP and port
+    // get the communicatord IP and port
     // TODO: switch to fluid-settings
     //
-    advgetopt::conf_file_setup conf_setup("/etc/snapwebsites/snapcommunicator.conf");
-    advgetopt::conf_file::pointer_t snapcommunicator(advgetopt::conf_file::get_conf_file(conf_setup));
+    advgetopt::conf_file_setup conf_setup("/etc/communicatod/communicatord.conf");
+    advgetopt::conf_file::pointer_t communicator_settings(advgetopt::conf_file::get_conf_file(conf_setup));
     std::string const communicator_addr("127.0.0.1");
     constexpr int const communicator_port(4040);
     addr::addr const a(addr::string_to_addr(
-              snapcommunicator->get_parameter("local_listen")
+              communicator_settings->get_parameter("local_listen")
             , communicator_addr
             , communicator_port
             , "tcp"));
 
-    // create the messenger, a connection between the snapwatchdogserver
-    // and the snapcommunicator which allows us to communicate with
-    // the watchdog (STATUS and STOP especially, more later)
+    // create the messenger, a connection between the sitter
+    // and the communicatord which allows us to communicate
     //
     g_messenger.reset(new messenger(instance(), a));
     g_communicator->add_connection(g_messenger);
@@ -709,7 +721,7 @@ int server::run()
 
 /** \brief Send a message via the messenger.
  *
- * This function is an override which allows the watchdog server to
+ * This function is an override which allows the sitter server to
  * handle messages through the dispatcher.
  */
 bool server::send_message(ed::message & message, bool cache)
@@ -732,9 +744,9 @@ void server::process_tick()
 }
 
 
-/** \brief Initialize the watchdog server parameters.
+/** \brief Initialize the sitter server parameters.
  *
- * This function gets the parameters from the watchdog configuration file
+ * This function gets the parameters from the sitter configuration file
  * and convert them for use by the server implementation.
  *
  * If a parameter is not valid, the function calls exit(1) so the server
@@ -1238,7 +1250,7 @@ bool server::output_process(
 
     if(info == nullptr)
     {
-        // no snapcommunicator process!?
+        // no communicatord process!?
         //
         process["error"] = "missing";
 
@@ -1287,7 +1299,7 @@ bool server::output_process(
 void server::stop(bool quitting)
 {
     SNAP_LOG_INFO
-        << "Stopping watchdog server."
+        << "Stopping sitter server."
         << SNAP_LOG_SEND;
 
     f_stopping = true;
@@ -1297,7 +1309,7 @@ void server::stop(bool quitting)
         if(quitting || !g_messenger->is_connected())
         {
             // turn off that connection now, we cannot UNREGISTER since
-            // we are not connected to snapcommunicator
+            // we are not connected to communicatord
             //
             g_communicator->remove_connection(g_messenger);
             g_messenger.reset();
@@ -1306,12 +1318,13 @@ void server::stop(bool quitting)
         {
             g_messenger->mark_done();
 
-            // if not snapcommunicator is not quitting, send an UNREGISTER
+            // if not communicatord is not quitting, send an UNREGISTER
             //
-            ed::message unregister;
-            unregister.set_command("UNREGISTER");
-            unregister.add_parameter("service", "snapwatchdog");
-            g_messenger->send_message(unregister);
+            g_messenger->unregister_service();
+            //ed::message unregister;
+            //unregister.set_command("UNREGISTER");
+            //unregister.add_parameter("service", "sitter");
+            //g_messenger->send_message(unregister);
         }
     }
 
@@ -1321,37 +1334,37 @@ void server::stop(bool quitting)
 
 
 
-void server::set_snapcommunicator_connected(bool status)
+void server::set_communicatord_connected(bool status)
 {
     if(status)
     {
-        f_snapcommunicator_connected = time(nullptr);
+        f_communicatord_connected = time(nullptr);
     }
     else
     {
-        f_snapcommunicator_disconnected = time(nullptr);
+        f_communicatord_disconnected = time(nullptr);
     }
 }
 
 
 
-bool server::get_snapcommunicator_is_connected() const
+bool server::get_communicatord_is_connected() const
 {
-    return f_snapcommunicator_disconnected < f_snapcommunicator_connected;
+    return f_communicatord_disconnected < f_communicatord_connected;
 }
 
 
 
-time_t server::get_snapcommunicator_connected_on() const
+time_t server::get_communicatord_connected_on() const
 {
-    return f_snapcommunicator_connected;
+    return f_communicatord_connected;
 }
 
 
 
-time_t server::get_snapcommunicator_disconnected_on() const
+time_t server::get_communicatord_disconnected_on() const
 {
-    return f_snapcommunicator_disconnected;
+    return f_communicatord_disconnected;
 }
 
 
@@ -1366,16 +1379,10 @@ std::string server::get_server_parameter(std::string const & name) const
 }
 
 
-/** \brief Get the path to a file in the snapwatchdog cache.
+/** \brief Get the path to a file in the sitter cache.
  *
- * This function returns a full path to the snapwatchdog cache plus
+ * This function returns a full path to the sitter cache plus
  * the specified filename.
- *
- * \note
- * The function ensures that the snapwatchdog sub-directory exists.
- * i.e. the /var/cache/snapwebsites directory exists, however,
- * the /var/cache/snapwebsites/snapwatchdog directory may not exist
- * yet.
  *
  * \param[in] filename  The name of the file to access in the cache.
  *
@@ -1385,19 +1392,15 @@ std::string server::get_cache_path(std::string const & filename)
 {
     if(f_cache_path.empty())
     {
-        // get the path specified by the administrator
+        // get the path specified by the administrator or default
         //
         f_cache_path = f_opts.get_string("cache-path");
-        if(f_cache_path.empty())
-        {
-            // no administrator path, use the default
-            //
-            f_cache_path = "/var/cache/sitter";
-        }
 
         // the path to "/var/cache/sitter" should always exist
         //
-        // TODO: handle possible error
+        // if the user defined a different path, try to create it if it does
+        // not exist (in all likelihood, it fails because permissions prevent
+        // the creation of the directory)
         //
         if(!snapdev::mkdir_p(f_cache_path))
         {
@@ -1459,6 +1462,15 @@ void server::record_usage(ed::message const & message)
     //
     std::string filename(data_path);
     filename += "/rusage/";
+    if(snapdev::mkdir_p(filename, false, 0755, "sitter", "sitter") != 0)
+    {
+        SNAP_LOG_MAJOR
+            << "sitter::record_usage(): could not create sub-directory  \""
+            << filename
+            << "\"."
+            << SNAP_LOG_SEND;
+        return;
+    }
     filename += process_name;
     filename += '-';
     filename += (start_date / 3600) % 24;
@@ -1473,6 +1485,7 @@ void server::record_usage(ed::message const & message)
             << filename
             << "\"."
             << SNAP_LOG_SEND;
+        return;
     }
 }
 
@@ -1569,5 +1582,5 @@ int server::get_max_error_priority() const
 
 
 
-} // namespace snap
+} // namespace sitter
 // vim: ts=4 sw=4 et

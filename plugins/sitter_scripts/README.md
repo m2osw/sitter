@@ -1,9 +1,9 @@
 
-# snapwatchdog Scripts Directory
+# Sitter Scripts Directory
 
 This file is a placeholder in the default directory used by the
-`watchdogscripts` plugin to read shell scripts that it executes
-each time the `snapwatchdog` backend wakes up (once per minute by default.)
+Sitter scripts plugin to read shell scripts that it executes
+each time the Sitter daemon wakes up (once per minute by default).
 
 
 # Script Requirements
@@ -23,13 +23,13 @@ adapt to your situation.
 At this time we expect scripts installed in that directory to be named
 by following this convention:
 
-* Start the name with `watch_`
+* Start the name with `sitter_`
 * Follow with the name of your project, for example, the
-firewall plugin uses `firewall_`
+  firewall plugin uses `sitter_firewall_...`
 * Continue with the name of the object the script verifies for the
-`snapwatchdog` daemon. For example, the firewall plugin test checks
-the fail2ban client script that could derail (run using 100% of the CPU)
-so this section of the name is `fail2ban_client`.
+  Sitter daemon. For example, the firewall plugin test checks
+  the fail2ban client script that could derail (run using 100% of the CPU)
+  so the full name is `sitter_firewall_fail2ban_client`.
 
 Although the name can really be anything, we suggest to follow this
 convention to ensure unicity of each script name.
@@ -37,9 +37,9 @@ convention to ensure unicity of each script name.
 
 # Defaults
 
-The `watchdogscripts` plugin starts your scripts using the
-`watch_script_starter`. The starter script retrieves defaults
-by sourcing the `/etc/default/snapwatchdog` shell script file.
+The `sitter_scripts` plugin starts your scripts using the
+`sitter-script-starter`. The starter script retrieves defaults
+by sourcing the `/etc/default/sitter` shell script file.
 This file defines various variables that the scripts are free
 to use.
 
@@ -49,7 +49,7 @@ be removed.
 
 # Order of Execution
 
-The `watchdogscripts` plugin reads the files in whatever order
+The `sitter_scripts` plugin reads the files in whatever order
 they appear in this directory. It ignores this README.md file,
 but no specific order is offered. All the scripts should work
 independently and not require any specific order of execution.

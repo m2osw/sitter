@@ -1,4 +1,3 @@
-# sitter -- a tool used to verify service availabilities
 # Copyright (c) 2011-2022  Made to Order Software Corp.  All Rights Reserved
 #
 # https://snapwebsites.org/project/sitter
@@ -33,6 +32,8 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     sitter.cpp
     sitter_worker.cpp
+    sys_stats.cpp
+    version.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -47,8 +48,6 @@ target_include_directories(${PROJECT_NAME}
         ${SNAPDEV_INCLUDE_DIRS}
 )
 
-message("EDHTTP_LIBRARIES=${EDHTTP_LIBRARIES}")
-message("AS2JS_LIBRARIES=${AS2JS_LIBRARY}")
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         ${AS2JS_LIBRARIES}

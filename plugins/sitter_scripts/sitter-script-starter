@@ -1,7 +1,7 @@
 #!/bin/sh
 #
-# This script is used to start one of the scripts that the watchscripts
-# wants to run.
+# This script is used to start one of the scripts that the sitter scripts
+# plugin wants to run.
 #
 
 set -e
@@ -12,13 +12,13 @@ then
     exit 1;
 fi
 
-WATCH_SCRIPT="$1"
+SITTER_SCRIPT="$1"
 
 # Source our defaults if present
 #
-if test -f /etc/default/snapwatchdog
+if test -f /etc/default/sitter
 then
-    . /etc/default/snapwatchdog
+    . /etc/default/sitter
 fi
 
 # Run the client's script
@@ -29,11 +29,11 @@ fi
 # some scripts won't have the 'x' flag and some people may create an ELF
 # binary.)
 #
-if test -x $WATCH_SCRIPT
+if test -x $SITTER_SCRIPT
 then
-    $WATCH_SCRIPT
+    $SITTER_SCRIPT
 else
-    $SHELL $WATCH_SCRIPT
+    $SHELL $SITTER_SCRIPT
 fi
 
 # vim: ts=4 sw=4 et

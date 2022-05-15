@@ -78,11 +78,11 @@ void firewall::bootstrap()
 }
 
 
-/** \brief Process this watchdog data.
+/** \brief Process this sitter data.
  *
- * This function runs this watchdog.
+ * This function runs this plugin actual check.
  *
- * \param[in] doc  The document.
+ * \param[in] json  The document where the results are collected.
  */
 void firewall::on_process_watch(as2js::JSON::JSONValueRef & json)
 {

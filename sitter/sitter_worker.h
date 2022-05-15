@@ -72,35 +72,5 @@ private:
 };
 
 
-//class watchdog_child
-//    : public snap_child
-//{
-//public:
-//    typedef std::shared_ptr<watchdog_child>     pointer_t;
-//
-//                        watchdog_child(server_pointer_t s, bool tick);
-//    virtual             ~watchdog_child() override;
-//
-//    bool                is_tick() const;
-//    bool                run_watchdog_plugins();
-//    bool                record_usage(ed::message const & message);
-//    virtual void        exit(int code) override;
-//
-//    pid_t               get_child_pid() const;
-//    void                append_error(QDomDocument doc, QString const & plugin_name, QString const & message, int priority = 50);
-//    void                append_error(QDomDocument doc, QString const & plugin_name, std::string const & message, int priority = 50);
-//    void                append_error(QDomDocument doc, QString const & plugin_name, char const * message, int priority = 50);
-//
-//    server::pointer_t   get_server();
-//    QString             get_cache_path(QString const & filename);
-//
-//private:
-//    pid_t               f_child_pid = -1;
-//    bool const          f_tick = true;
-//    bool                f_has_cassandra = false;
-//    std::string         f_cache_path = std::string();
-//};
-
-
 } // namespace sitter
 // vim: ts=4 sw=4 et

@@ -1,10 +1,9 @@
 #!/bin/sh
 #
-# This specifies shell vars defined that the watchscripts
-# plugin from the snapwatchdog uses.
+# Define shell variables for the sitter_scripts plugin.
 
-# The default shell for snapwebsites is "/bin/false" so you cannot log in
-# that account without some tricks (i.e. `su -s /bin/bash snapwebsites`)
+# The default shell for sitter is "/bin/false" so you cannot log in
+# that account without some tricks (i.e. `su -s /bin/bash sitter`)
 # So we have to define a proper shell interpretor in case the script
 # needs it (which it does because files under /usr/share/... do not get
 # their execution bits set.)

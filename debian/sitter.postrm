@@ -4,29 +4,23 @@
 . /usr/share/debconf/confmodule
 
 
-PACKAGENAME=snapwatchdog
-
-# Remove files representing each service offered by this package
-#
-SERVICES_DIR=/usr/share/snapwebsites/services
-rm -f ${SERVICES_DIR}/${PACKAGENAME}.service
+PACKAGENAME=sitter
 
 if [ "$1" = "purge" ]
 then
     # delete all of the collected data on a purge
     #
-    SNAPWATCHDOG_LIB_DIR=/var/lib/snapwebsites/${PACKAGENAME}
-    rm -rf ${SNAPWATCHDOG_LIB_DIR}
+    SITTER_LIB_DIR=/var/lib/${PACKAGENAME}
+    rm -rf ${SITTER_LIB_DIR}
 
     # delete all logs
     #
-    rm -f /var/log/snapwebsites/${PACKAGENAME}.log*
-    shredlog -fu /var/log/snapwebsites/secure/${PACKAGENAME}.log*
-    rm -rf /var/log/snapwebsites/snapwatchdog-output
+    shredlog --force --unlink --recursive /var/log/${PACKAGENAME}/secure/*.log*
+    rm -rf /var/log/${PACKAGENAME}
 
     # delete the user configuration file
     #
-    rm -f /etc/snapwebsites/snapwebsites.d/${PACKAGENAME}.conf
+    rm -f /etc/sitter/sitter.d/50-${PACKAGENAME}.conf
 fi
 
 

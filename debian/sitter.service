@@ -2,8 +2,8 @@
 # https://www.freedesktop.org/software/systemd/man/systemd.service.html
 
 [Unit]
-Description=Snap! Websites snapwatchdog daemon
-After=snapbase.service snapcommunicator.service snapfirewall.service snapdbproxy.service
+Description=Sitter Daemon
+After=snapbase.service communicatord.service snapfirewall.service snapdbproxy.service
 
 [Service]
 Type=simple
@@ -14,12 +14,12 @@ ProtectHome=true
 #          root when it wants to save an email in /var/mail/root--so the
 #          result is that we need to allow changes in privileges
 NoNewPrivileges=false
-ExecStart=/usr/sbin/snapwatchdogserver
-ExecStop=/usr/bin/snapstop --timeout 180 --service "$MAINPID"
+ExecStart=/usr/sbin/sitterd
+ExecStop=/usr/bin/ed-stop --timeout 180 --service "$MAINPID"
 Restart=on-failure
 RestartSec=1min
-User=snapwebsites
-Group=snapwebsites
+User=sitter
+Group=sitter
 LimitNPROC=1000
 # For developers and administrators to get console output
 #StandardOutput=tty

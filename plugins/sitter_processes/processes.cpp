@@ -1,9 +1,11 @@
-// Snap Websites Server -- watchdog processes
-// Copyright (c) 2013-2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2013-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// This program is free software; you can redistribute it and/or modify
+// https://snapwebsites.org/project/sitter
+// contact@m2osw.com
+//
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -11,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 // self
@@ -96,7 +97,7 @@ char const * g_configuration_apache2_maintenance = "/etc/apache2/snap-conf/snap-
 
 /** \brief Check whether a service is enabled or not.
  *
- * The Snap! Watchdog does view a missing process as normal if the
+ * The Sitter views a missing process as normal if the
  * corresponding service is marked as disabled. This function tells
  * us whether the service is considered up and running or not.
  *
@@ -189,7 +190,7 @@ bool is_service_enabled(std::string const & service_name)
 
 /** \brief Check whether a service is active or not.
  *
- * The Snap! Watchdog checks whether a service is considered active too.
+ * The Sitter checks whether a service is considered active too.
  * A service may be marked as enabled but it may not be active.
  *
  * \param[in] service_name  The name of the service, as systemd understands
@@ -385,10 +386,10 @@ void sitter_process::set_mandatory(bool mandatory)
 
 /** \brief Set the name of the expected command.
  *
- * The name of the watchdog process may be different from the exact
+ * The name of the sitter process may be different from the exact
  * terminal command name. For example, the cassandra process runs
  * using "java" and not "cassandra". In that case, the command would
- * be set "java".
+ * be set to "java".
  *
  * \param[in] command  The name of the command to seek.
  */
@@ -400,7 +401,7 @@ void sitter_process::set_command(std::string const & command)
 
 /** \brief Set the name of the service corresponding to this process.
  *
- * When testing whether a process is running, the watchdog can first
+ * When testing whether a process is running, the sitter can first
  * check whether that process is a service (i.e. when a service name was
  * specified in the XML.) When a process is a known service and the
  * service is disabled, then whether the service is running is none of
@@ -410,8 +411,8 @@ void sitter_process::set_command(std::string const & command)
  * Note that by default a process is not considered a service. You
  * have to explicitely mark it as such with the \<service> tag.
  * This also allows you to have a name for the service which is
- * different than the name of the executable (i.e. "snapwatchdog"
- * is the service and "snapwatchdogserver" is the executable.)
+ * different than the name of the executable (i.e. "sitter"
+ * is the service and "sitterd" is the executable.)
  *
  * You may reset the service to QString(). In that case, it resets
  * the flags to their defaults and ignores the \p backend parameter.
@@ -788,12 +789,12 @@ void load_process(int index, std::string processes_filename)
 }
 
 
-/** \brief Load the list of watchdog processes.
+/** \brief Load the list of sitter processes.
  *
- * This function loads the XML from the watchdog and other packages.
+ * This function loads the XML from the sitter and other packages.
  *
- * \param[in] processes_path  The path to the list of XML files declaring
- *            processes that should be running.
+ * \param[in] processes_path  The path to the list of .conf files declaring
+ *            processes that should be running on this computer.
  */
 void load_processes(std::string processes_path)
 {
@@ -832,11 +833,11 @@ void processes::bootstrap()
 }
 
 
-/** \brief Process this watchdog data.
+/** \brief Process this sitter data.
  *
- * This function runs this watchdog.
+ * This function runs this plugin actual check.
  *
- * \param[in] doc  The document.
+ * \param[in] json  The document where the results are collected.
  */
 void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
 {

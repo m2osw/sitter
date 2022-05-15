@@ -62,7 +62,7 @@ By default, the scripts are found under:
 
 The scripts are expected to test whether things are running as expected.
 This includes testing whether certain daemons are running or not. For
-example, if `snapcommunicator` is not running, it will be reported.
+example, if `communicatord` is not running, it will be reported.
 
 The scripts are also used to detect bad things that are at times happening
 on a server. For example, `fail2ban` version 0.9.3-1 has a process named

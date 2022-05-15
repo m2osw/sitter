@@ -25,7 +25,5 @@ A few things that still need to be done in this project:
 
 * Move firewall plugin to iplock.
 
-* Look at removing the dependency on procps, just read the /proc/... files
-  instead (it is that the procps is a horrible piece of code).
-  Also I don't think it's part of newer versions of the OS.
+* Actually implement real unit tests.
 

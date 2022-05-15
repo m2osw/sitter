@@ -476,8 +476,11 @@ void load_config(
  *
  * Objects of type definition are read from configuration files.
  *
- * The watchdog log plugin checks log files for sizes and various content
- * to warn the administrators of problems it discovers.
+ * The sitter log plugin checks log files for sizes and various content
+ * to warn the administrators of problems it discovers. In most cases,
+ * our tools are much more pro-active. They either raise a flag or
+ * send a message over the network so that we have no need to check
+ * logs. However, third party tools may not offer such capabilities.
  */
 
 

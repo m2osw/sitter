@@ -18,7 +18,7 @@
 
 AtomicNames("names.an")
 
-project(watchdog_disk)
+project(sitter_disk)
 
 add_library(${PROJECT_NAME} SHARED
     disk.cpp

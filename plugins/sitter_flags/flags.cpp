@@ -15,7 +15,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// Snap Websites Server -- Flags watchdog: check for raised flags
 
 
 // self
@@ -78,11 +77,11 @@ void flags::bootstrap()
 }
 
 
-/** \brief Process this watchdog data.
+/** \brief Process this sitter data.
  *
- * This function runs this watchdog.
+ * This function runs this plugin actual check.
  *
- * \param[in] doc  The document.
+ * \param[in] json  The document where the results are collected.
  */
 void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
 {

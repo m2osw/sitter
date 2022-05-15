@@ -59,38 +59,6 @@
 namespace sitter
 {
 
-//namespace watchdog
-//{
-//enum class name_t
-//{
-//    SNAP_NAME_WATCHDOG_ADMINISTRATOR_EMAIL,
-//    SNAP_NAME_WATCHDOG_CACHE_PATH,
-//    SNAP_NAME_WATCHDOG_DATA_PATH,
-//    SNAP_NAME_WATCHDOG_DEFAULT_LOG_PATH,
-//    SNAP_NAME_WATCHDOG_ERROR_REPORT_CRITICAL_PRIORITY,
-//    SNAP_NAME_WATCHDOG_ERROR_REPORT_LOW_PRIORITY,
-//    SNAP_NAME_WATCHDOG_ERROR_REPORT_MEDIUM_PRIORITY,
-//    SNAP_NAME_WATCHDOG_ERROR_REPORT_SETTLE_TIME,
-//    SNAP_NAME_WATCHDOG_FROM_EMAIL,
-//    SNAP_NAME_WATCHDOG_LOG_DEFINITIONS_PATH,
-//    SNAP_NAME_WATCHDOG_LOG_PATH,
-//    SNAP_NAME_WATCHDOG_SERVER_NAME,
-//    SNAP_NAME_WATCHDOG_SERVERSTATS,
-//    SNAP_NAME_WATCHDOG_STATISTICS_FREQUENCY,
-//    SNAP_NAME_WATCHDOG_STATISTICS_PERIOD,
-//    SNAP_NAME_WATCHDOG_STATISTICS_TTL,
-//    SNAP_NAME_WATCHDOG_USER_GROUP
-//};
-//char const * get_name(name_t name) __attribute__ ((const));
-//} // watchdog namespace
-
-
-
-
-
-//class watchdog_child;
-
-
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
@@ -113,11 +81,11 @@ public:
     int64_t             get_statistics_ttl() const { return f_statistics_ttl; }
     void                ready(ed::message & message);
     void                stop(bool quitting);
-    void                set_snapcommunicator_connected(bool status);
-    void                set_snapcommunicator_disconnected(bool status);
-    bool                get_snapcommunicator_is_connected() const;
-    time_t              get_snapcommunicator_connected_on() const;
-    time_t              get_snapcommunicator_disconnected_on() const;
+    void                set_communicatord_connected(bool status);
+    void                set_communicatord_disconnected(bool status);
+    bool                get_communicatord_is_connected() const;
+    time_t              get_communicatord_connected_on() const;
+    time_t              get_communicatord_disconnected_on() const;
     std::string         get_cache_path(std::string const & filename);
     std::string         get_server_parameter(std::string const & name) const;
 
@@ -167,7 +135,6 @@ public:
 private:
     void                define_server_name();
     bool                init_parameters();
-    void                run_watchdog_process();
     void                record_usage(ed::message const & message);
 
     advgetopt::getopt   f_opts;
@@ -187,8 +154,8 @@ private:
     int                 f_max_error_priority = 0;
     bool                f_stopping = false;
     bool                f_force_restart = false;
-    time_t              f_snapcommunicator_connected = 0;
-    time_t              f_snapcommunicator_disconnected = 0;
+    time_t              f_communicatord_connected = 0;
+    time_t              f_communicatord_disconnected = 0;
     std::string         f_cache_path = std::string();
     int                 f_ticks = 0;
 
@@ -198,36 +165,6 @@ private:
                         f_worker_thread = cppthread::thread::pointer_t();
 };
 #pragma GCC diagnostic pop
-
-
-//class watchdog_child
-//    : public snap_child
-//{
-//public:
-//    typedef std::shared_ptr<watchdog_child>     pointer_t;
-//
-//                        watchdog_child(server_pointer_t s, bool tick);
-//    virtual             ~watchdog_child() override;
-//
-//    bool                is_tick() const;
-//    bool                run_watchdog_plugins();
-//    bool                record_usage(ed::message const & message);
-//    virtual void        exit(int code) override;
-//
-//    pid_t               get_child_pid() const;
-//    void                append_error(QDomDocument doc, QString const & plugin_name, QString const & message, int priority = 50);
-//    void                append_error(QDomDocument doc, QString const & plugin_name, std::string const & message, int priority = 50);
-//    void                append_error(QDomDocument doc, QString const & plugin_name, char const * message, int priority = 50);
-//
-//    server::pointer_t   get_server();
-//    QString             get_cache_path(QString const & filename);
-//
-//private:
-//    pid_t               f_child_pid = -1;
-//    bool const          f_tick = true;
-//    bool                f_has_cassandra = false;
-//    std::string         f_cache_path = std::string();
-//};
 
 
 } // namespace sitter

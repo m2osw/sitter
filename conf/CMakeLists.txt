@@ -44,5 +44,14 @@ install(
         lib/sitter
 )
 
+# Define as a Communicator Service
+install(
+    FILES
+        sitter.service
+
+    DESTINATION
+        share/communicatord/services
+)
+
 
 # vim: ts=4 sw=4 et

@@ -1,0 +1,8 @@
+# This file is part of the sitter project
+#
+# https://snapwebsites.org/project/sitter
+#
+# See tmpfiles.d(5) for details
+
+# type  path               permissions  user    group   cleanup
+d       /var/cache/sitter  0775         sitter  sitter  31d

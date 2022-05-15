@@ -1,4 +1,3 @@
-# sitter -- a tool used to verify service availabilities
 # Copyright (c) 2011-2022  Made to Order Software Corp.  All Rights Reserved
 #
 # https://snapwebsites.org/project/sitter
@@ -18,7 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Plugin names must use underscores
-project(watchdog_memory)
+project(sitter_memory)
 
 add_library(${PROJECT_NAME} SHARED
     memory.cpp

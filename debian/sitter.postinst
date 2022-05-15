@@ -7,71 +7,61 @@
 
 if [ "$1" = "configure" ]
 then
-    PACKAGENAME=snapwatchdog
+    ENVIRONMENTNAME=sitter
+    PACKAGENAME=sitter
+    USERNAME=sitter
+    GROUPNAME=sitter
 
-    # Create files representing each service offered by this package
+    # create the sitter sub-directories
+    # (the directory itself is created when we create the sitter user)
     #
-    SERVICES_DIR=/usr/share/snapwebsites/services
-    touch ${SERVICES_DIR}/${PACKAGENAME}.service
-
-    # create the snapwatchdog directories
-    #
-    SNAPWATCHDOG_LIB_DIR=/var/lib/snapwebsites/${PACKAGENAME}
-    mkdir -p ${SNAPWATCHDOG_LIB_DIR}
-    chown snapwebsites:snapwebsites ${SNAPWATCHDOG_LIB_DIR}
-    for subdir in data rusage script-files
+    SITTER_LIB_DIR=/var/lib/${ENVIRONMENTNAME}
+    for subdir in data script-files
     do
-        mkdir -p ${SNAPWATCHDOG_LIB_DIR}/${subdir}
-        chown snapwebsites:snapwebsites ${SNAPWATCHDOG_LIB_DIR}/${subdir}
+        mkdir -p ${SITTER_LIB_DIR}/${subdir}
+        chown ${USERNAME}:${GROUPNAME} ${SITTER_LIB_DIR}/${subdir}
     done
 
-    # clean up old data if any is left
-    # (i.e. moved under .../data/...)
-    #
-    rm -rf ${SNAPWATCHDOG_LIB_DIR}/[0-9]*.xml
-
-    # make the snapwatchdog cache folders
-    #
-    # This is not useful because it gets deleted if not used for a while.
-    # Instead we have to make sure that directory exists before we use it.
-    #
-    #SNAPWATCHDOG_CACHE_DIR=/var/cache/snapwebsites/${PACKAGENAME}
-    #mkdir -p ${SNAPWATCHDOG_CACHE_DIR}
-    #chown snapwebsites:snapwebsites ${SNAPWATCHDOG_CACHE_DIR}
-
-    # Create the logfile because the snapwebsites user may have
+    # Create the logfile because the "sitter" user may have
     # difficulties with it otherwise during logrotate.
     #
-    SNAPLOGDIR=/var/log/snapwebsites
-    LOGFILE=${SNAPLOGDIR}/${PACKAGENAME}.log
+    LOGDIR=/var/log/sitter
+    LOGFILE=${LOGDIR}/${PACKAGENAME}.log
+    mkdir -p ${LOGDIR}
     touch ${LOGFILE}
-    chown snapwebsites:snapwebsites ${LOGFILE}
-    chmod 640 ${LOGFILE}
+    chown ${USERNAME}:${GROUPNAME} ${LOGFILE}
+    chmod 644 ${LOGFILE}
 
-    SNAPSECURELOGDIR=/var/log/snapwebsites/secure
-    SECURELOGFILE=${SNAPSECURELOGDIR}/${PACKAGENAME}.log
+    SECURELOGDIR=${LOGDIR}/secure
+    mkdir -p ${SECURELOGDIR}
+    chmod 750 ${SECURELOGDIR}
+
+    SECURELOGFILE=${SECURELOGDIR}/${PACKAGENAME}.log
     touch ${SECURELOGFILE}
-    chown snapwebsites:snapwebsites ${SECURELOGFILE}
+    chown ${USERNAME}:${GROUPNAME} ${SECURELOGFILE}
     chmod 640 ${SECURELOGFILE}
 
-    SNAPSCRIPTSLOGDIR=/var/log/snapwebsites/snapwatchdog-output
-    mkdir -p ${SNAPSCRIPTSLOGDIR}
-    chown snapwebsites:snapwebsites ${SNAPSCRIPTSLOGDIR}
-    chmod 770 ${SNAPSCRIPTSLOGDIR}
+    SCRIPTSLOGDIR=${LOGDIR}/sitter-output
+    mkdir -p ${SCRIPTSLOGDIR}
+    chown ${USERNAME}:${GROUPNAME} ${SCRIPTSLOGDIR}
+    chmod 770 ${SCRIPTSLOGDIR}
 
-    SCRIPTSLOGFILE=${SNAPSCRIPTSLOGDIR}/snapwatchdog-scripts.log
+    SCRIPTSLOGFILE=${SCRIPTSLOGDIR}/sitter-scripts.log
     touch ${SCRIPTSLOGFILE}
-    chown snapwebsites:snapwebsites ${SCRIPTSLOGFILE}
+    chown ${USERNAME}:${GROUPNAME} ${SCRIPTSLOGFILE}
     chmod 640 ${SCRIPTSLOGFILE}
 
-    SCRIPTSLOGERRORS=${SNAPSCRIPTSLOGDIR}/snapwatchdog-scripts-errors.log
+    SCRIPTSLOGERRORS=${SCRIPTSLOGDIR}/sitter-scripts-errors.log
     touch ${SCRIPTSLOGERRORS}
-    chown snapwebsites:snapwebsites ${SCRIPTSLOGERRORS}
+    chown ${USERNAME}:${GROUPNAME} ${SCRIPTSLOGERRORS}
     chmod 640 ${SCRIPTSLOGERRORS}
 
     # Signal snapdbproxy since we just added new tables
     #
-    snapsignal snapdbproxy/NEWTABLE
+    # TODO: look into having a way inside the database to send this signal
+    # also at this time we're not saving anything in the db from the sitter
+    #
+    #ed-signal snapdbproxy/NEWTABLE
 fi
 
 # vim: ts=4 sw=4 et nocindent

@@ -15,7 +15,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-// Snap Websites Server -- snap watchdog library
 
 
 // self
@@ -86,11 +85,11 @@ void log::bootstrap()
 }
 
 
-/** \brief Process this watchdog data.
+/** \brief Process this sitter data.
  *
- * This function runs this watchdog.
+ * This function runs this plugin actual check.
  *
- * \param[in] json  The output JSON to save info about the logs.
+ * \param[in] json  The document where the results are collected.
  */
 void log::on_process_watch(as2js::JSON::JSONValueRef & json)
 {

@@ -1,9 +1,11 @@
-// Snap Websites Server -- watchdog packages
-// Copyright (c) 2013-2021  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2013-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// This program is free software; you can redistribute it and/or modify
+// https://snapwebsites.org/project/sitter
+// contact@m2osw.com
+//
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -11,9 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
 // self
@@ -77,7 +78,7 @@
 /** \file
  * \brief Verify that packages are installed, not installed, not in conflicts.
  *
- * This Snap! Watchdog plugin checks packages for:
+ * This Sitter plugin checks packages for:
  *
  * \li Packages that are expected to be installed (necessary for Snap! or
  *     enhance security)
@@ -92,10 +93,10 @@
  * _simultaneously_, then the ntpd can't be restarted and the clock
  * is going to be allowed to drift.
  *
- * This watchdog plugin expects a list of XML files with definitions
- * of packages as defined above: required, unwanted, in conflict.
- * It is just too hard to make sure invalid installations won't ever
- * happen without help from the computer.
+ * This packages plugin expects a list of configuration files with
+ * definitions of packages as defined above: required, unwanted, in
+ * conflict. It is just too hard to make sure invalid installations
+ * won't ever happen without help from the computer.
  */
 
 namespace sitter
@@ -154,10 +155,10 @@ namespace
  */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
-class watchdog_package_t
+class sitter_package_t
 {
 public:
-    typedef std::vector<watchdog_package_t>             vector_t;
+    typedef std::vector<sitter_package_t>               vector_t;
     typedef std::set<std::string>                       package_name_set_t;
     typedef std::map<std::string, bool>                 installed_packages_t;
 
@@ -168,7 +169,7 @@ public:
         PACKAGE_INSTALLATION_UNWANTED
     };
 
-                                watchdog_package_t(
+                                sitter_package_t(
                                           sitter::server::pointer_t snap
                                         , std::string const & name
                                         , installation_t installation
@@ -201,25 +202,29 @@ private:
 };
 #pragma GCC diagnostic pop
 
-watchdog_package_t::vector_t                g_packages = watchdog_package_t::vector_t();
-watchdog_package_t::installed_packages_t    g_installed_packages = watchdog_package_t::installed_packages_t();
+sitter_package_t::vector_t                  g_packages = sitter_package_t::vector_t();
+sitter_package_t::installed_packages_t      g_installed_packages = sitter_package_t::installed_packages_t();
 bool                                        g_cache_loaded = false;
 bool                                        g_cache_modified = false;
 
 
-/** \brief Initializes a watchdog_package_t object.
+/** \brief Initializes a sitter_package_t object.
  *
- * This function initializes the watchdog_package_t making it
+ * This function initializes the sitter_package_t making it
  * ready to run the match() command.
  *
  * \note
  * The \p name is like a brief _description_ of the conflict.
  *
- * \param[in] snap  The pointer back to the watchdog_child object.
+ * \param[in] server  The pointer back to the server object.
  * \param[in] name  The name of the package conflict.
  * \param[in] priority  The priority to use in case of conflict.
  */
-watchdog_package_t::watchdog_package_t(sitter::server::pointer_t server, std::string const & name, installation_t installation, int priority)
+sitter_package_t::sitter_package_t(
+          sitter::server::pointer_t server
+        , std::string const & name
+        , installation_t installation
+        , int priority)
     : f_server(server)
     , f_name(name)
     , f_installation(installation)
@@ -235,7 +240,7 @@ watchdog_package_t::watchdog_package_t(sitter::server::pointer_t server, std::st
  *
  * \param[in] description  The description of this conflict.
  */
-void watchdog_package_t::set_description(std::string const & description)
+void sitter_package_t::set_description(std::string const & description)
 {
     f_description = snapdev::trim_string(description);
 }
@@ -254,7 +259,7 @@ void watchdog_package_t::set_description(std::string const & description)
  *
  * \param[in] package_name  The name of the package to seek.
  */
-void watchdog_package_t::add_conflict(std::string const & package_name)
+void sitter_package_t::add_conflict(std::string const & package_name)
 {
     if(package_name == f_name)
     {
@@ -272,7 +277,7 @@ void watchdog_package_t::add_conflict(std::string const & package_name)
  *
  * \return The name this package.
  */
-std::string const & watchdog_package_t::get_name() const
+std::string const & sitter_package_t::get_name() const
 {
     return f_name;
 }
@@ -286,7 +291,7 @@ std::string const & watchdog_package_t::get_name() const
  *
  * \return The name this package conflict.
  */
-watchdog_package_t::installation_t watchdog_package_t::get_installation() const
+sitter_package_t::installation_t sitter_package_t::get_installation() const
 {
     return f_installation;
 }
@@ -299,7 +304,7 @@ watchdog_package_t::installation_t watchdog_package_t::get_installation() const
  *
  * \return A string representing this package installation mode.
  */
-std::string watchdog_package_t::get_installation_as_string() const
+std::string sitter_package_t::get_installation_as_string() const
 {
     switch(f_installation)
     {
@@ -325,7 +330,7 @@ std::string watchdog_package_t::get_installation_as_string() const
  *
  * \return The description to generate errors.
  */
-std::string const & watchdog_package_t::get_description() const
+std::string const & sitter_package_t::get_description() const
 {
     return f_description;
 }
@@ -346,7 +351,7 @@ std::string const & watchdog_package_t::get_description() const
  *
  * \return The set of package names considered in conflict with this package.
  */
-watchdog_package_t::package_name_set_t const & watchdog_package_t::get_conflicts() const
+sitter_package_t::package_name_set_t const & sitter_package_t::get_conflicts() const
 {
     return f_conflicts;
 }
@@ -363,7 +368,7 @@ watchdog_package_t::package_name_set_t const & watchdog_package_t::get_conflicts
  *
  * \return The set of package in conflict with the expected package.
  */
-watchdog_package_t::package_name_set_t const & watchdog_package_t::get_packages_in_conflict() const
+sitter_package_t::package_name_set_t const & sitter_package_t::get_packages_in_conflict() const
 {
     return f_in_conflict;
 }
@@ -384,7 +389,7 @@ watchdog_package_t::package_name_set_t const & watchdog_package_t::get_packages_
  *
  * \return The priority of this package conflict.
  */
-int watchdog_package_t::get_priority() const
+int sitter_package_t::get_priority() const
 {
     return f_priority;
 }
@@ -396,7 +401,7 @@ int watchdog_package_t::get_priority() const
  *
  * \return true if the named package is installed.
  */
-bool watchdog_package_t::is_package_installed(std::string const & package_name)
+bool sitter_package_t::is_package_installed(std::string const & package_name)
 {
     bool result(false);
 
@@ -507,7 +512,7 @@ SNAP_LOG_TRACE
  *
  * \return true if the process definitions can have duplicates for that process.
  */
-bool watchdog_package_t::is_in_conflict()
+bool sitter_package_t::is_in_conflict()
 {
     // if the expected package is not even installed, there cannot be
     // a conflict because of this definition so ignore the list of
@@ -548,7 +553,7 @@ bool watchdog_package_t::is_in_conflict()
  *
  * \return The corresponding installation type.
  */
-watchdog_package_t::installation_t watchdog_package_t::installation_from_string(std::string const & installation)
+sitter_package_t::installation_t sitter_package_t::installation_from_string(std::string const & installation)
 {
     if(installation.empty()
     || installation == "optional")
@@ -619,11 +624,11 @@ void packages::bootstrap()
 }
 
 
-/** \brief Process this watchdog data.
+/** \brief Process this sitter data.
  *
- * This function runs this watchdog.
+ * This function runs this plugin actual check.
  *
- * \param[in] doc  The document.
+ * \param[in] json  The document where the results are collected.
  */
 void packages::on_process_watch(as2js::JSON::JSONValueRef & json)
 {
@@ -653,10 +658,10 @@ SNAP_LOG_TRACE
             package["conflicts"] = snapdev::join_strings(possible_conflicts, ", ");
         }
 
-        watchdog_package_t::installation_t const installation(pc.get_installation());
+        sitter_package_t::installation_t const installation(pc.get_installation());
         switch(installation)
         {
-        case watchdog_package_t::installation_t::PACKAGE_INSTALLATION_REQUIRED:
+        case sitter_package_t::installation_t::PACKAGE_INSTALLATION_REQUIRED:
             if(!pc.is_package_installed(pc.get_name()))
             {
                 // package is required, so it is in error if not installed
@@ -678,7 +683,7 @@ SNAP_LOG_TRACE
             }
             break;
 
-        case watchdog_package_t::installation_t::PACKAGE_INSTALLATION_UNWANTED:
+        case sitter_package_t::installation_t::PACKAGE_INSTALLATION_UNWANTED:
             if(pc.is_package_installed(pc.get_name()))
             {
                 // package is unwanted, so it should not be installed
@@ -701,7 +706,7 @@ SNAP_LOG_TRACE
             break;
 
         // optional means that it may or may not be installed
-        //case watchdog_package::installation_t::PACKAGE_INSTALLATION_OPTIONAL:
+        //case sitter_package::installation_t::PACKAGE_INSTALLATION_OPTIONAL:
         default:
             break;
 
@@ -740,10 +745,10 @@ SNAP_LOG_TRACE
 }
 
 
-/**\brief Load the list of watchdog packages.
+/**\brief Load the list of sitter packages.
  *
- * This function loads the XML from the watchdog and other packages that
- * define packages that are to be reported to the administrator.
+ * This function loads the configuration files from the sitter and other
+ * packages that define packages that are to be reported to the administrator.
  */
 void packages::load_packages()
 {
@@ -777,7 +782,7 @@ void packages::load_packages()
 /** \brief Load a package configuration file.
  *
  * This function loads one configuration file and transform it in a
- * watchdog_package_t object.
+ * sitter_package_t object.
  *
  * \exception invalid_name
  * This exception is raised if the name from a package is empty
@@ -808,10 +813,10 @@ void packages::load_package(int index, std::string package_filename)
         advgetopt::validator_integer::convert_string(priority_str, priority);
     }
 
-    watchdog_package_t::installation_t installation(watchdog_package_t::installation_t::PACKAGE_INSTALLATION_OPTIONAL);
+    sitter_package_t::installation_t installation(sitter_package_t::installation_t::PACKAGE_INSTALLATION_OPTIONAL);
     if(package->has_parameter("intallation"))
     {
-        installation = watchdog_package_t::installation_from_string(package->get_parameter("installation"));
+        installation = sitter_package_t::installation_from_string(package->get_parameter("installation"));
     }
 
     std::string description;
@@ -829,7 +834,7 @@ void packages::load_package(int index, std::string package_filename)
                 , { "," });
     }
 
-    watchdog_package_t wp(
+    sitter_package_t wp(
               plugins()->get_server<sitter::server>()
             , name
             , installation

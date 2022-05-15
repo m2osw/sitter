@@ -1,5 +1,4 @@
-# sitter -- a tool used to verify service availabilities
-# Copyright (c) 2011-2022  Made to Order Software Corp.  All Rights Reserved
+# Copyright (c) 2013-2022  Made to Order Software Corp.  All Rights Reserved
 #
 # https://snapwebsites.org/project/sitter
 # contact@m2osw.com
@@ -17,35 +16,40 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# Plugin names must use underscores
-project(sitter_firewall)
+##
+## sitter unittest
+##
+project(unittest)
 
-add_library(${PROJECT_NAME} SHARED
-    firewall.cpp
-)
+find_package(SnapCatch2)
 
-target_include_directories(${PROJECT_NAME}
-    PUBLIC
-        ${CPPPROCESS_INCLUDE_DIRS}
-)
+if(SnapCatch2_FOUND)
 
-install(
-    TARGETS
-        ${PROJECT_NAME}
+    add_executable(${PROJECT_NAME}
+        catch_main.cpp
 
-    LIBRARY DESTINATION
-        ${PLUGIN_INSTALL_DIR}
-)
+        catch_version.cpp
+    )
 
-install(
-    DIRECTORY
-        ${CMAKE_CURRENT_SOURCE_DIR}
+    target_include_directories(${PROJECT_NAME}
+        PUBLIC
+            ${CMAKE_BINARY_DIR}
+            ${PROJECT_SOURCE_DIR}
+            ${SNAPCATCH2_INCLUDE_DIRS}
+            ${LIBEXCEPT_INCLUDE_DIRS}
+    )
 
-    DESTINATION
-        include/sitter/plugins/firewall
+    target_link_libraries(${PROJECT_NAME}
+        sitter
+        ${SNAPCATCH2_LIBRARIES}
+    )
 
-    FILES_MATCHING PATTERN
-        "*.h"
-)
+    add_test(unittests ${PROJECT_NAME})
+
+else(SnapCatch2_FOUND)
+
+    message("snapcatch2 not found... no tests will be built.")
+
+endif(SnapCatch2_FOUND)
 
 # vim: ts=4 sw=4 et

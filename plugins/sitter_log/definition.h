@@ -71,7 +71,7 @@ public:
 
 private:
     std::string                 f_name          = std::string();
-    std::string                 f_path          = std::string("/var/log/snapwebsites");
+    std::string                 f_path          = std::string("/var/log");
     advgetopt::string_list_t    f_patterns      = { std::string("*.log") };
     std::size_t                 f_max_size      = MAX_SIZE_UNDEFINED;
     uid_t                       f_uid           = -1;

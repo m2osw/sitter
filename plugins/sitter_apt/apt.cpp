@@ -82,11 +82,11 @@ void apt::bootstrap()
 }
 
 
-/** \brief Process this watchdog data.
+/** \brief Process this sitter data.
  *
- * This function runs this watchdog.
+ * This function runs this plugin actual check.
  *
- * \param[in] doc  The document.
+ * \param[in] json  The document where the results are collected.
  */
 void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
 {
@@ -99,6 +99,8 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
     // get path to apt-check file
     //
     // first use the default path
+    //
+    // WARNING: this is the path for the snapmanager, not the sitter
     //
     std::string manager_cache_path("/var/cache/snapwebsites");
 

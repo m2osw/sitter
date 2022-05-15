@@ -1,9 +1,8 @@
-// Snap Websites Server -- CPU watchdog: record CPU usage over time
 // Copyright (c) 2013-2022  Made to Order Software Corp.  All Rights Reserved.
 //
 // https://snapwebsites.org/project/sitter
 // contact@m2osw.com
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -21,6 +20,11 @@
 // self
 //
 #include    "cpu.h"
+
+
+// sitter
+//
+#include    <sitter/sys_stats.h>
 
 
 // libexcept
@@ -50,9 +54,9 @@
 #include    <snapdev/not_used.h>
 
 
-// C
+// C++
 //
-#include    <proc/sysinfo.h>
+#include    <thread>
 
 
 // last include
@@ -90,11 +94,11 @@ void cpu::bootstrap()
 }
 
 
-/** \brief Process this watchdog data.
+/** \brief Process this sitter data.
  *
- * This function runs this watchdog.
+ * This function runs this plugin actual check.
  *
- * \param[in] doc  The document.
+ * \param[in] json  The document where the results are collected.
  */
 void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
 {
@@ -104,38 +108,31 @@ void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
 
     as2js::JSON::JSONValueRef e(json["cpu"]);
 
+    sys_stats info;
+
     // automatically initialized when loading the procps library
-    e["count"] = smp_num_cpus;
-    e["freq"] = Hertz;
+    int const cpu_count(std::max(1U, std::thread::hardware_concurrency()));
+    e["count"] = cpu_count;
+    e["freq"] = sysconf(_SC_CLK_TCK); // in procps, this is named Hertz
 
     // total uptime and total idle time since boot
-    {
-        double uptime_secs(0.0);
-        double idle_secs(0.0);
-        uptime(&uptime_secs, &idle_secs); // also returns uptime_secs
-        e["uptime"] = uptime_secs;
-        e["idle"] = idle_secs;
-    }
+    e["uptime"] = info.get_uptime();
+    e["idle"] = info.get_idle();
 
     // average CPU usage in the last 1 minute, 5 minutes, 15 minutes
     {
-        double avg1(0.0);
-        double avg5(0.0);
-        double avg15(0.0);
-        loadavg(&avg1, &avg5, &avg15);
-        e["avg1"] = avg1;
-        e["avg5"] = avg5;
-        e["avg15"] = avg15;
+        e["avg1"] = info.get_load_avg1m();
+        e["avg5"] = info.get_load_avg5m();
+        e["avg15"] = info.get_load_avg15m();
 
         // we always need the path to this cache file, if the CPU is
         // okay (not overloaded) then we want to delete the file
         // which in effect resets the timer
         //
-        //QString cache_path(f_server->get_server_parameter(snap::watchdog::get_name(snap::watchdog::name_t::SNAP_NAME_WATCHDOG_CACHE_PATH)));
         std::string cache_path = "/var/cache/sitter";
         std::string const high_cpu_usage_filename(cache_path + "/high_cpu_usage.txt");
 
-        double max_avg1(smp_num_cpus);
+        double max_avg1(cpu_count);
         if(max_avg1 > 1.0) // with 1 CPU, go up to 100%
         {
             if(max_avg1 <= 2.0)
@@ -147,7 +144,7 @@ void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
                 max_avg1 *= 0.8; // with 3+, go up to 80%
             }
         }
-        if(static_cast<double>(avg1) >= max_avg1)
+        if(info.get_load_avg1m() >= max_avg1)
         {
             // using too much of the CPUs is considered a warning, however,
             // if it lasts for too long (15 min.) it becomes an error
@@ -211,56 +208,35 @@ void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
         }
     }
 
-    // some additional statistics
-    // (maybe one day they'll use a structure instead!)
-    // typedef unsigned long jiff;
-    // total CPU usage is in Jiffies (USER_HZ)
+    // CPU management
+    //
+    e["total_cpu_user"] = info.get_cpu_stat(cpu_t::CPU_USER_TIME) + info.get_cpu_stat(cpu_t::CPU_NICE_TIME);
+    e["total_cpu_system"] = info.get_cpu_stat(cpu_t::CPU_SYSTEM_TIME);
+    e["total_cpu_wait"] = info.get_cpu_stat(cpu_t::CPU_IDLE_TIME) + info.get_cpu_stat(cpu_t::CPU_IOWAIT_TIME);
+    e["time_of_boot"] = info.get_boot_time();
+
+    // process management
+    //
+    e["total_processes"] = info.get_processes();
+    if(info.get_procs_running() > 1)
     {
-        jiff cuse;                      // total CPU usage by user, normal processes
-        jiff cice;                      // total CPU usage by user, niced processes
-        jiff csys;                      // total CPU usage by system (kernel)
-        jiff cide;                      // total CPU IDLE
-        jiff ciow;                      // total CPU I/O wait
-        jiff cxxx;                      // total CPU usage servicing interrupts
-        jiff cyyy;                      // total CPU usage servicing softirqs
-        jiff czzz;                      // total CPU usage running virtual hosts (steal time)
-        unsigned long pin;              // page in (read back from cache)
-        unsigned long pout;             // page out (freed from memory)
-        unsigned long s_in;             // swap in (read back from swap)
-        unsigned long sout;             // swap out (written to swap to free form memory)
-        unsigned intr;                  // total number of interrupts so far
-        unsigned ctxt;                  // total number of context switches
-        unsigned int running;           // total number of processes currently running
-        unsigned int blocked;           // total number of processes currently blcoked
-        unsigned int btime;             // boot time (as a Unix time)
-        unsigned int processes;         // total number of processes ever created
-
-        getstat(&cuse, &cice, &csys, &cide, &ciow, &cxxx, &cyyy, &czzz,
-             &pin, &pout, &s_in, &sout, &intr, &ctxt, &running, &blocked,
-             &btime, &processes);
-
-        e["total_cpu_user"] = cuse + cice;
-        e["total_cpu_system"] = csys;
-        e["total_cpu_wait"] = cide + ciow;
-        e["page_cache_in"] = pin;
-        e["page_cache_out"] = pout;
-        e["swap_cache_in"] = s_in;
-        e["swap_cache_out"] = sout;
-        e["time_of_boot"] = btime;
-        if(running > 1)
-        {
-            e["processes_running"] = running;
-        }
-        if(blocked != 0)
-        {
-            e["processes_blocked"] = blocked;
-        }
-        e["total_processes"] = processes;
+        e["processes_running"] = info.get_procs_running();
     }
+    if(info.get_procs_blocked() != 0)
+    {
+        e["processes_blocked"] = info.get_procs_blocked();
+    }
+
+    // memory management
+    //
+    e["page_cache_in"] = info.get_page_in();
+    e["page_cache_out"] = info.get_page_out();
+    e["swap_cache_in"] = info.get_page_swap_in();
+    e["swap_cache_out"] = info.get_page_swap_out();
 }
 
 
 
-} // namespace apt
+} // namespace cpu
 } // namespace sitter
 // vim: ts=4 sw=4 et
