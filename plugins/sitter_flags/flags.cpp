@@ -92,7 +92,7 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
     // check whether we have any flags that are currently raised
     // if not, we just return ASAP
     //
-    communicatord::flag::list_t list(sitter::flag::load_flags());
+    communicatord::flag::list_t list(communicatord::flag::load_flags());
     if(list.empty())
     {
         return;
@@ -123,7 +123,7 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
         e["function"] =    f->get_function();
         e["line"] =        f->get_line();
 
-        sitter::flag::tag_list_t const & tag_list(f->get_tags());
+        communicatord::flag::tag_list_t const & tag_list(f->get_tags());
         if(!tag_list.empty())
         {
             as2js::JSON::JSONValueRef tags(flg["tags"]);
