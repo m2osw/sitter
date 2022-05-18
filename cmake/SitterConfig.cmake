@@ -1,6 +1,4 @@
-# - Try to find Sitter
-#
-# Once done this will define
+# - Find Sitter
 #
 # SITTER_FOUND        - System has Sitter
 # SITTER_INCLUDE_DIRS - The Sitter include directories
@@ -32,7 +30,7 @@ find_path(
         sitter/version.h
 
     PATHS
-        $ENV{SITTER_INCLUDE_DIR}
+        ENV SITTER_INCLUDE_DIR
 )
 
 find_library(
@@ -40,7 +38,8 @@ find_library(
         sitter
 
     PATHS
-        $ENV{SITTER_LIBRARY}
+        ${SITTER_LIBRARY_DIR}
+        ENV SITTER_LIBRARY
 )
 
 mark_as_advanced(
@@ -52,14 +51,11 @@ set(SITTER_INCLUDE_DIRS ${SITTER_INCLUDE_DIR})
 set(SITTER_LIBRARIES    ${SITTER_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
-
-# handle the QUIETLY and REQUIRED arguments and set SITTER_FOUND to
-# TRUE if all listed variables are TRUE
 find_package_handle_standard_args(
     Sitter
-    DEFAULT_MSG
-    SITTER_INCLUDE_DIR
-    SITTER_LIBRARY
+    REQUIRED_VARS
+        SITTER_INCLUDE_DIR
+        SITTER_LIBRARY
 )
 
 # vim: ts=4 sw=4 et
