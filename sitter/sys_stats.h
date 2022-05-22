@@ -19,6 +19,7 @@
 
 // C++
 //
+#include    <cstdint>
 #include    <map>
 #include    <memory>
 #include    <numeric>
