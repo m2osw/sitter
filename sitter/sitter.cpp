@@ -164,6 +164,7 @@ advgetopt::option const g_command_line_options[] =
           advgetopt::Name("administrator-email")
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
+        , advgetopt::Validator("email(single)")
         , advgetopt::Help("the email address of the administrator to email whenever an issue is detected.")
     ),
     advgetopt::define_option(
@@ -184,7 +185,7 @@ advgetopt::option const g_command_line_options[] =
           advgetopt::Name("disk-ignore")
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::Help("colon separated regular expressions defining paths to ignored when checking disks.")
+        , advgetopt::Help("colon separated regular expressions defining paths ignored when checking disks.")
     ),
     advgetopt::define_option(
           advgetopt::Name("error-report-critical-priority")
@@ -212,6 +213,7 @@ advgetopt::option const g_command_line_options[] =
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("300")
+        , advgetopt::Validator("duration")
         , advgetopt::Help("the amount of time the sitter waits before sending reports; this gives the server time to get started.")
     ),
     advgetopt::define_option(
@@ -225,7 +227,7 @@ advgetopt::option const g_command_line_options[] =
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("apt,cpu,disk,flags,log,memory,network,packages,processes,scripts")
-        , advgetopt::Help("the list of sitter plugins to load by default.")
+        , advgetopt::Help("the list of sitter plugins to run.")
     ),
     advgetopt::define_option(
           advgetopt::Name("plugins-path")
@@ -239,6 +241,7 @@ advgetopt::option const g_command_line_options[] =
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("60")
+        , advgetopt::Validator("duration")
         , advgetopt::Help("how often the sitter runs all the plugins.")
     ),
     advgetopt::define_option(
@@ -246,6 +249,7 @@ advgetopt::option const g_command_line_options[] =
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("604800")
+        , advgetopt::Validator("duration")
         , advgetopt::Help("time for the statistics to live; older statistics get deleted.")
     ),
     advgetopt::define_option(
@@ -253,6 +257,7 @@ advgetopt::option const g_command_line_options[] =
         , advgetopt::Flags(advgetopt::all_flags<
               advgetopt::GETOPT_FLAG_REQUIRED>())
         , advgetopt::DefaultValue("off")
+        , advgetopt::Validator("keyword(off) | duration")
         , advgetopt::Help("the statistics can be saved in the database in which case a TTL is assigned to that data so it automatically gets deleted; use \"off\" to turn off this feature.")
     ),
     advgetopt::define_option(
