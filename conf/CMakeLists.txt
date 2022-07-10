@@ -44,13 +44,22 @@ install(
         lib/sitter
 )
 
+# sitter definitions for fluid-settings
+install(
+    FILES
+        sitter.ini
+
+    DESTINATION
+        ${FLUIDSETTINGS_DEFINITIONS_INSTALL_DIR}
+)
+
 # Define as a Communicator Service
 install(
     FILES
         sitter.service
 
     DESTINATION
-        share/communicatord/services
+        ${COMMUNICATORD_SERVICES_INSTALL_DIR}
 )
 
 
