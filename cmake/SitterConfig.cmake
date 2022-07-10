@@ -58,4 +58,6 @@ find_package_handle_standard_args(
         SITTER_LIBRARY
 )
 
+set(SITTER_PLUGIN_INSTALL_DIR lib/sitter/plugins)
+
 # vim: ts=4 sw=4 et

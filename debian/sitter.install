@@ -1,8 +1,14 @@
 usr/lib/libsitter.so.*
+usr/lib/sitter
 usr/bin
 usr/sbin
-conf/sitter.conf                                etc/sitter/
+usr/share/communicatord
+usr/share/fluid-settings
+usr/share/sitter
+usr/share/snaplogger
+
+conf/logger/README.md                           etc/sitter/logger/sitter.d/
 conf/README.md                                  etc/sitter/sitter.d/
-conf/logger/sitter.conf                         etc/sitter/logger/
-conf/log-definitions/sitter.conf                usr/share/sitter/log-definitions/
-conf/log-definitions/sitter-secure.conf         usr/share/sitter/log-definitions/
+
+# we already install this one in usr/share/sitter
+#conf/sitter.conf                                etc/sitter/

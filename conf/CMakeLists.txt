@@ -1,4 +1,3 @@
-# sitter -- a tool used to verify service availabilities
 # Copyright (c) 2011-2022  Made to Order Software Corp.  All Rights Reserved
 #
 # https://snapwebsites.org/project/sitter
@@ -26,13 +25,22 @@ install(
         share/sitter
 )
 
+# Log definitions (i.e. how to verify that log files are in good standing)
+install(
+    DIRECTORY
+        log-definitions
+
+    DESTINATION
+        share/sitter
+)
+
 # Logger files
 install(
     FILES
         logger/sitter.conf
 
     DESTINATION
-        share/sitter/logger
+        ${SNAPLOGGER_SHARE_CONF_DIR}
 )
 
 # test MTA file

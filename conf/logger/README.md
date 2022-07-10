@@ -1,7 +1,7 @@
 
-You can added additional logger settings in this sub-directory.
+You can change logger settings by adding files in this sub-directory.
 
-The files have tobe named
+The files have to be named:
 
     ??-logger.conf
 
@@ -9,5 +9,5 @@ The files have tobe named
 
     ??-sitter.conf
 
-Where the `??` represents a number from 00 to 99.
+Where `??` represents a number from 00 to 99.
 

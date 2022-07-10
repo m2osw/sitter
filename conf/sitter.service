@@ -1,1 +1,5 @@
 # Communicatord Service
+#
+# This file tells the communicatord that the sitter is a local
+# service and such a service is going to connect to it
+description=The sitter makes sure that this computer is healthy.

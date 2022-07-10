@@ -14,7 +14,7 @@ ProtectHome=true
 #          root when it wants to save an email in /var/mail/root--so the
 #          result is that we need to allow changes in privileges
 NoNewPrivileges=false
-ExecStart=/usr/sbin/sitterd
+ExecStart=/usr/sbin/sitter
 ExecStop=/usr/bin/ed-stop --timeout 180 --service "$MAINPID"
 Restart=on-failure
 RestartSec=1min

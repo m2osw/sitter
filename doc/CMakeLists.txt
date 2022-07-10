@@ -42,7 +42,7 @@ install(
 install(
     FILES
         find-process.1
-        sitterd.1
+        sitter.1
 
     DESTINATION
         share/man/man1

@@ -271,7 +271,27 @@ advgetopt::option const g_command_line_options[] =
 };
 
 
+advgetopt::group_description const g_group_descriptions[] =
+{
+    advgetopt::define_group(
+          advgetopt::GroupNumber(advgetopt::GETOPT_FLAG_GROUP_COMMANDS)
+        , advgetopt::GroupName("command")
+        , advgetopt::GroupDescription("Commands:")
+    ),
+    advgetopt::define_group(
+          advgetopt::GroupNumber(advgetopt::GETOPT_FLAG_GROUP_OPTIONS)
+        , advgetopt::GroupName("option")
+        , advgetopt::GroupDescription("Options:")
+    ),
+    advgetopt::end_groups()
+};
 
+
+constexpr char const * const g_configuration_files[] =
+{
+    "/etc/sitter/sitter.conf",
+    nullptr
+};
 
 
 // until we have C++20 remove warnings this way
@@ -286,7 +306,7 @@ advgetopt::options_environment const g_options_environment =
     .f_environment_variable_name = nullptr,
     .f_environment_variable_intro = nullptr,
     .f_section_variables_name = nullptr,
-    .f_configuration_files = nullptr,
+    .f_configuration_files = g_configuration_files,
     .f_configuration_filename = nullptr,
     .f_configuration_directories = nullptr,
     .f_environment_flags = advgetopt::GETOPT_ENVIRONMENT_FLAG_PROCESS_SYSTEM_PARAMETERS,
@@ -298,8 +318,9 @@ advgetopt::options_environment const g_options_environment =
     .f_copyright = "Copyright (c) 2013-"
                    BOOST_PP_STRINGIZE(UTC_BUILD_YEAR)
                    " by Made to Order Software Corporation -- All Rights Reserved",
-    //.f_build_date = UTC_BUILD_DATE,
-    //.f_build_time = UTC_BUILD_TIME
+    .f_build_date = UTC_BUILD_DATE,
+    .f_build_time = UTC_BUILD_TIME,
+    .f_groups = g_group_descriptions,
 };
 #pragma GCC diagnostic pop
 

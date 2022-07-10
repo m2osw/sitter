@@ -1,4 +1,3 @@
-# sitter -- a tool used to verify service availabilities
 # Copyright (c) 2011-2022  Made to Order Software Corp.  All Rights Reserved
 #
 # https://snapwebsites.org/project/sitter
@@ -17,17 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-project(sitterd)
+project(sitter-daemon)
 
 add_executable(${PROJECT_NAME}
-    sitterd.cpp
+    sitter.cpp
+)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    OUTPUT_NAME sitter
 )
 
 target_link_libraries(${PROJECT_NAME}
     sitter
-    #${ADVGETOPT_LIBRARIES}
-    #${AS2JS_LIBRARIES}
-    #dl
 )
 
 install(
@@ -37,6 +37,5 @@ install(
     RUNTIME DESTINATION
         sbin
 )
-
 
 # vim: ts=4 sw=4 et
