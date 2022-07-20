@@ -1,4 +1,6 @@
 
+# Changing Logger Settings
+
 You can change logger settings by adding files in this sub-directory.
 
 The files have to be named:
