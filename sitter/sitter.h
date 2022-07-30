@@ -24,7 +24,6 @@
 
 // eventdispatcher
 //
-#include    <eventdispatcher/connection_with_send_message.h>
 #include    <eventdispatcher/dispatcher.h>
 #include    <eventdispatcher/logrotate_udp_messenger.h>
 
@@ -65,7 +64,7 @@ namespace sitter
 class server
     : public std::enable_shared_from_this<server>
     , public ed::connection_with_send_message
-    , public ed::dispatcher<server>
+    , public ed::dispatcher
     , public serverplugins::server
 {
 public:

@@ -52,6 +52,7 @@
 
 // eventdispatcher
 //
+#include    <eventdispatcher/communicator.h>
 #include    <eventdispatcher/signal.h>
 #include    <eventdispatcher/tcp_client_permanent_message_connection.h>
 
@@ -575,28 +576,6 @@ void messenger::process_connected()
 
 
 
-
-
-
-
-/** \brief List of sitter commands
- *
- * The following table defines the commands understood by the sitter service
- * that are not defined as a default by the ed::dispatcher implementation.
- */
-ed::dispatcher<server>::dispatcher_match::vector_t const g_sitter_service_messages =
-{
-    {
-        "RELOADCONFIG"
-      , &server::msg_reload_config
-    },
-    {
-        "RUSAGE"
-      , &server::msg_rusage
-    }
-};
-
-
 } // no name namespace
 
 
@@ -608,7 +587,7 @@ ed::dispatcher<server>::dispatcher_match::vector_t const g_sitter_service_messag
  * sitter server configuration file.
  */
 server::server(int argc, char * argv[])
-    : dispatcher(this, g_sitter_service_messages)
+    : dispatcher(this)
     , f_opts(g_options_environment)
     , f_logrotate(f_opts, "127.0.0.1", 4988)
     , f_communicatord_disconnected(time(nullptr))
@@ -623,6 +602,11 @@ server::server(int argc, char * argv[])
         throw advgetopt::getopt_exit("logger options generated an error.", 0);
     }
     f_logrotate.process_logrotate_options();
+
+    add_matches({
+        DISPATCHER_MATCH("RELOADCONFIG", &server::msg_reload_config),
+        DISPATCHER_MATCH("RUSAGE",       &server::msg_rusage),
+    });
 }
 
 
