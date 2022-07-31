@@ -159,7 +159,7 @@ cppthread::thread::pointer_t    g_worker_thread;
 
 
 
-advgetopt::option const g_command_line_options[] =
+advgetopt::option const g_options[] =
 {
     advgetopt::define_option(
           advgetopt::Name("administrator-email")
@@ -302,10 +302,10 @@ advgetopt::options_environment const g_options_environment =
 {
     .f_project_name = "sitter",
     .f_group_name = nullptr,
-    .f_options = g_command_line_options,
+    .f_options = g_options,
     .f_options_files_directory = nullptr,
-    .f_environment_variable_name = nullptr,
-    .f_environment_variable_intro = nullptr,
+    .f_environment_variable_name = "SITTER_OPTIONS",
+    .f_environment_variable_intro = "SITTER_",
     .f_section_variables_name = nullptr,
     .f_configuration_files = g_configuration_files,
     .f_configuration_filename = nullptr,
