@@ -1,10 +1,10 @@
 # Names for the Sitter Packages plugin
 
-introducer=sitter_name
+introducer=name
 project=sitter
 sub_project=processes
 
 [public]
-processes_path="sitter_processes_path"
+path="sitter_processes_path"
 
 # vim: syntax=dosini

@@ -26,9 +26,9 @@
 #include    "sitter/version.h"
 
 
-// libmimemail
-//
-#include    <libmimemail/email.h>
+//// libmimemail
+////
+//#include    <libmimemail/email.h>
 
 
 // snaplogger
@@ -42,40 +42,17 @@
 //
 #include    <advgetopt/conf_file.h>
 #include    <advgetopt/exception.h>
+#include    <advgetopt/validator_duration.h>
 #include    <advgetopt/validator_integer.h>
-
-
-// libaddr
-//
-#include    <libaddr/addr_parser.h>
-
-
-// eventdispatcher
-//
-#include    <eventdispatcher/communicator.h>
-#include    <eventdispatcher/signal.h>
-#include    <eventdispatcher/tcp_client_permanent_message_connection.h>
 
 
 // snapdev
 //
 #include    <snapdev/file_contents.h>
 #include    <snapdev/gethostname.h>
+#include    <snapdev/glob_to_list.h>
 #include    <snapdev/mkdir_p.h>
-#include    <snapdev/not_reached.h>
-#include    <snapdev/not_used.h>
 #include    <snapdev/string_replace_many.h>
-
-
-// C++
-//
-#include    <algorithm>
-#include    <fstream>
-
-
-// C
-//
-#include    <sys/wait.h>
 
 
 // last include
@@ -138,136 +115,9 @@ namespace
 server::pointer_t               g_server;
 
 
-/** \brief The ed::communicator singleton.
- *
- * This variable holds a copy of the ed::communicator singleton.
- * It is a null pointer until the sitter gets initialized.
- */
-ed::communicator::pointer_t     g_communicator;
-
-
-/** \brief The gathering of data uses a thread now.
- *
- * In the first version, we used a fork() and loaded the plugins in the
- * child process.
- *
- * In the new version, we start a thread early one, load the plugins once,
- * and then sleep until we get a tick. The process runs until the service
- * quits.
- */
-cppthread::thread::pointer_t    g_worker_thread;
-
-
 
 advgetopt::option const g_options[] =
 {
-    advgetopt::define_option(
-          advgetopt::Name("administrator-email")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::Validator("email(single)")
-        , advgetopt::Help("the email address of the administrator to email whenever an issue is detected.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("cache-path")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("/var/cache/sitter")
-        , advgetopt::Help("the path to the cache used by the sitter.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("data-path")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("/var/lib/sitter")
-        , advgetopt::Help("the path to a directory where plugins can save data.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("disk-ignore")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::Help("colon separated regular expressions defining paths ignored when checking disks.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("error-report-critical-priority")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("90,86400")
-        , advgetopt::Help("the critical priority a message has to trigger an email after the specified period (priority and period are separated by a comma).")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("error-report-low-priority")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("10,604800")
-        , advgetopt::Help("the minimum priority a message has to trigger an email after the specified period (priority and period are separated by a comma).")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("error-report-medium-priority")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("50,259200")
-        , advgetopt::Help("the medium priority a message has to trigger an email after the specified period (priority and period are separated by a comma).")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("error-report-settle-time")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("300")
-        , advgetopt::Validator("duration")
-        , advgetopt::Help("the amount of time the sitter waits before sending reports; this gives the server time to get started.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("from-email")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::Help("the email address to use in the \"From: ...\" field when sending emails.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("plugins")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("apt,cpu,disk,flags,log,memory,network,packages,processes,scripts")
-        , advgetopt::Help("the list of sitter plugins to run.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("plugins-path")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("/usr/lib/sitter/plugins")
-        , advgetopt::Help("the path to the location holding the sitter plugins.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("statistics-frequency")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("60")
-        , advgetopt::Validator("duration")
-        , advgetopt::Help("how often the sitter runs all the plugins.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("statistics-period")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("604800")
-        , advgetopt::Validator("duration")
-        , advgetopt::Help("time for the statistics to live; older statistics get deleted.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("statistics-ttl")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("off")
-        , advgetopt::Validator("keyword(off) | duration")
-        , advgetopt::Help("the statistics can be saved in the database in which case a TTL is assigned to that data so it automatically gets deleted; use \"off\" to turn off this feature.")
-    ),
-    advgetopt::define_option(
-          advgetopt::Name("user-group")
-        , advgetopt::Flags(advgetopt::all_flags<
-              advgetopt::GETOPT_FLAG_REQUIRED>())
-        , advgetopt::DefaultValue("sitter:sitter")
-        , advgetopt::Help("the name of a user and a group, separated by a colon, to use for the statistics and other journal files.")
-    ),
     advgetopt::end_options()
 };
 
@@ -288,13 +138,6 @@ advgetopt::group_description const g_group_descriptions[] =
 };
 
 
-constexpr char const * const g_configuration_files[] =
-{
-    "/etc/sitter/sitter.conf",
-    nullptr
-};
-
-
 // until we have C++20 remove warnings this way
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -307,13 +150,13 @@ advgetopt::options_environment const g_options_environment =
     .f_environment_variable_name = "SITTER_OPTIONS",
     .f_environment_variable_intro = "SITTER_",
     .f_section_variables_name = nullptr,
-    .f_configuration_files = g_configuration_files,
-    .f_configuration_filename = nullptr,
+    .f_configuration_files = nullptr,
+    .f_configuration_filename = "sitter.conf",
     .f_configuration_directories = nullptr,
     .f_environment_flags = advgetopt::GETOPT_ENVIRONMENT_FLAG_PROCESS_SYSTEM_PARAMETERS,
     .f_help_header = "Usage: %p [-<opt>] <process-name>\n"
                      "where -<opt> is one or more of:",
-    .f_help_footer = "%c",
+    .f_help_footer = "Additional command line options loaded from: %i\n\n%c",
     .f_version = SITTER_VERSION_STRING,
     .f_license = "GNU GPL v2",
     .f_copyright = "Copyright (c) 2013-"
@@ -324,255 +167,6 @@ advgetopt::options_environment const g_options_environment =
     .f_groups = g_group_descriptions,
 };
 #pragma GCC diagnostic pop
-
-
-
-/** \brief Handle the SIGINT that is expected to stop the server.
- *
- * This class is an implementation of the snap_signal that listens
- * on the SIGINT.
- */
-class interrupt
-    : public ed::signal
-{
-public:
-    typedef std::shared_ptr<interrupt>     pointer_t;
-
-                        interrupt(server::pointer_t s);
-    virtual             ~interrupt() override {}
-
-    // ed::connection implementation
-    virtual void        process_signal() override;
-
-private:
-    server::pointer_t  f_server = server::pointer_t();
-};
-
-
-/** \brief The tick timer.
- *
- * We create one tick timer. It is saved in this variable if needed.
- */
-interrupt::pointer_t             g_interrupt;
-
-
-/** \brief The interrupt initialization.
- *
- * The interrupt uses the signalfd() function to obtain a way to listen on
- * incoming Unix signals.
- *
- * Specifically, it listens on the SIGINT signal, which is the equivalent
- * to the Ctrl-C.
- *
- * \param[in] ws  The server we are listening for.
- */
-interrupt::interrupt(server::pointer_t s)
-    : signal(SIGINT)
-    , f_server(s)
-{
-    unblock_signal_on_destruction();
-    set_name("interrupt");
-}
-
-
-/** \brief Call the stop function of the snaplock object.
- *
- * When this function is called, the signal was received and thus we are
- * asked to quit as soon as possible.
- */
-void interrupt::process_signal()
-{
-    // we simulate the STOP, so pass 'false' (i.e. not quitting)
-    //
-    f_server->stop(false);
-}
-
-
-
-
-
-
-
-/** \brief The timer to produce ticks once every minute.
- *
- * This timer is the one used to know when to gather data again.
- *
- * By default the interval is set to one minute, although it is possible
- * to change that amount in the configuration file.
- */
-class tick_timer
-    : public ed::timer
-{
-public:
-    typedef std::shared_ptr<tick_timer>        pointer_t;
-
-                                tick_timer(server::pointer_t s, int64_t interval);
-    virtual                     ~tick_timer() override {}
-
-    // ed::timer implementation
-    virtual void                process_timeout() override;
-
-private:
-    server::pointer_t           f_server = server::pointer_t();
-};
-
-
-/** \brief The tick timer.
- *
- * We create one tick timer. It is saved in this variable if needed.
- */
-tick_timer::pointer_t             g_tick_timer;
-
-
-/** \brief Initializes the timer with a pointer to the snap backend.
- *
- * The constructor saves the pointer of the snap_backend object so
- * it can later be used when the process times out.
- *
- * The timer is setup to trigger immediately after creation.
- * This is what starts the snap backend process.
- *
- * \param[in] s  A pointer to the snap_backend object.
- * \param[in] interval  The amount to wait between ticks.
- */
-tick_timer::tick_timer(server::pointer_t s, int64_t interval)
-    : timer(interval)
-    , f_server(s)
-{
-    set_name("tick_timer");
-
-    // start right away, but we do not want to use snap_timer(0)
-    // because otherwise we will not get ongoing ticks as expected
-    //
-    set_timeout_date(ed::get_current_date());
-}
-
-
-/** \brief The timeout happened.
- *
- * This function gets called once every minute (although the interval can
- * be changed, it is 1 minute by default). Whenever it happens, the
- * sitter runs all the plugins once.
- */
-void tick_timer::process_timeout()
-{
-    f_server->process_tick();
-}
-
-
-
-
-
-/** \brief Handle messages from the communicatord server.
- *
- * This class is an implementation of the TCP client message connection
- * so we can handle incoming messages.
- */
-class messenger
-    : public ed::tcp_client_permanent_message_connection
-{
-public:
-    typedef std::shared_ptr<messenger>    pointer_t;
-
-                                messenger(server::pointer_t s, addr::addr const & a);
-    virtual                     ~messenger() override {}
-
-    // ed::tcp_client_permanent_message_connection implementation
-    virtual void                process_connection_failed(std::string const & error_message) override;
-    virtual void                process_connected() override;
-
-private:
-    // this is owned by a server function so no need for a smart pointer
-    server::pointer_t           f_server = server::pointer_t();
-};
-
-
-/** \brief The messenger.
- *
- * We create only one messenger. It is saved in this variable.
- */
-messenger::pointer_t             g_messenger;
-
-
-/** \brief The messenger initialization.
- *
- * The messenger is a connection to the communicatord service.
- *
- * In most cases we receive STOP and LOG messages from it. We implement
- * a few other messages too (HELP, READY...)
- *
- * We use a permanent connection so if the communicatord restarts
- * for whatever reason, we reconnect automatically.
- *
- * \param[in] s  The sitter server we are listening for.
- * \param[in] address  The address to connect to, most often, 127.0.0.1:4040.
- */
-messenger::messenger(server::pointer_t s, addr::addr const & address)
-    : tcp_client_permanent_message_connection(
-              address
-            , ed::mode_t::MODE_PLAIN
-            , ed::DEFAULT_PAUSE_BEFORE_RECONNECTING
-            , false // do not use a separate thread, we do many fork()'s
-            , "sitter")
-    , f_server(s)
-{
-    set_name("messenger");
-}
-
-
-/** \brief The messenger could not connect to communicatord.
- *
- * This function is called whenever the messengers fails to
- * connect to the communicatord server. This could be
- * because communicatord is not running or because the
- * information given to the sitter is wrong...
- *
- * With systemd the communicatord should already be running
- * although this is not 100% guaranteed. So getting this
- * error from time to time is considered normal.
- *
- * \note
- * This error happens whenever the communicatod is upgraded
- * since the packager stops the process, upgrades, then restarts
- * it. The sitter automatically reconnects once possible.
- *
- * \param[in] error_message  An error message.
- */
-void messenger::process_connection_failed(std::string const & error_message)
-{
-    SNAP_LOG_ERROR
-        << "connection to communicatord failed ("
-        << error_message
-        << ")"
-        << SNAP_LOG_SEND;
-
-    // also call the default function, just in case
-    tcp_client_permanent_message_connection::process_connection_failed(error_message);
-    f_server->set_communicatord_connected(false);
-}
-
-
-/** \brief The connection was established with communicatord.
- *
- * Whenever the connection is establied with the communicatord,
- * this callback function is called.
- *
- * The messenger reacts by REGISTERing the "sitter" service with the
- * communicatord.
- */
-void messenger::process_connected()
-{
-    tcp_client_permanent_message_connection::process_connected();
-    register_service();
-
-    //ed::message register_backend;
-    //register_backend.set_command("REGISTER");
-    //register_backend.add_parameter("service", "sitter");
-    //register_backend.add_version_parameter();
-    //send_message(register_backend);
-    f_server->set_communicatord_connected(true);
-}
-
 
 
 
@@ -588,12 +182,14 @@ void messenger::process_connected()
  */
 server::server(int argc, char * argv[])
     : dispatcher(this)
+    , serverplugins::server(serverplugins::get_id("sitter"))
     , f_opts(g_options_environment)
-    , f_logrotate(f_opts, "127.0.0.1", 4988)
+    , f_communicator(ed::communicator::instance())
+    , f_messenger(std::make_shared<messenger>(this, f_opts))
     , f_communicatord_disconnected(time(nullptr))
 {
     snaplogger::add_logger_options(f_opts);
-    f_logrotate.add_logrotate_options();
+    add_plugin_options();
     f_opts.finish_parsing(argc, argv);
     if(!snaplogger::process_logger_options(f_opts, "/etc/sitter/logger"))
     {
@@ -601,7 +197,13 @@ server::server(int argc, char * argv[])
         //
         throw advgetopt::getopt_exit("logger options generated an error.", 0);
     }
-    f_logrotate.process_logrotate_options();
+
+    // further dispatcher initialization
+    //
+#ifdef _DEBUG
+    set_trace();
+    set_show_matches();
+#endif
 
     add_matches({
         DISPATCHER_MATCH("RELOADCONFIG", &server::msg_reload_config),
@@ -656,6 +258,50 @@ server::pointer_t server::instance()
 }
 
 
+/** \brief Load the plugin options.
+ *
+ * The command line options are loaded from the plugin .ini files too so that
+ * way each plugin can have its own set of options.
+ */
+void server::add_plugin_options()
+{
+    std::string name(f_opts.get_options_filename());
+    if(name.length() < 5)
+    {
+        return;
+    }
+
+    if(name.substr(name.length() - 4) != ".ini")
+    {
+        SNAP_LOG_WARNING
+            << "the options filename ("
+            << name
+            << ") does not end with \".ini\"."
+            << SNAP_LOG_SEND;
+        return;
+    }
+
+    name = name.substr(0, name.length() - 4) + "-*.ini";
+    snapdev::glob_to_list<std::list<std::string>> glob;
+    if(!glob.read_path<
+             snapdev::glob_to_list_flag_t::GLOB_FLAG_IGNORE_ERRORS,
+             snapdev::glob_to_list_flag_t::GLOB_FLAG_PERIOD>(name))
+    {
+        return;
+    }
+
+    for(auto const & n : glob)
+    {
+        SNAP_LOG_CONFIGURATION
+            << "loading additional command line options from \""
+            << n
+            << "\".\n"
+            << SNAP_LOG_SEND;
+        f_opts.parse_options_from_file(n, 1, 1);
+    }
+}
+
+
 /** \brief Finish sitter initialization and start the event loop.
  *
  * This function finishes the initialization such as defining the
@@ -665,61 +311,36 @@ server::pointer_t server::instance()
  */
 int server::run()
 {
-    SNAP_LOG_INFO
-        << "------------------------------------ sitter "
-        << snapdev::gethostname()
-        << " started."
-        << SNAP_LOG_SEND;
-
-    if(!init_parameters())
-    {
-        return 1;
-    }
-
     // TODO: test that the "sites" table is available?
     //       (we will not need any such table here)
 
-    g_communicator = ed::communicator::instance();
-
     // capture Ctrl-C (SIGINT)
     //
-    g_interrupt.reset(new interrupt(instance()));
-    g_communicator->add_connection(g_interrupt);
-
-    // get the communicatord IP and port
-    // TODO: switch to fluid-settings
-    //
-    advgetopt::conf_file_setup conf_setup("/etc/communicatod/communicatord.conf");
-    advgetopt::conf_file::pointer_t communicator_settings(advgetopt::conf_file::get_conf_file(conf_setup));
-    std::string const communicator_addr("127.0.0.1");
-    constexpr int const communicator_port(4040);
-    addr::addr const a(addr::string_to_addr(
-              communicator_settings->get_parameter("local_listen")
-            , communicator_addr
-            , communicator_port
-            , "tcp"));
+    f_interrupt = std::make_shared<interrupt>(this);
+    f_communicator->add_connection(f_interrupt);
 
     // create the messenger, a connection between the sitter
     // and the communicatord which allows us to communicate
+    // to any running services
     //
-    g_messenger.reset(new messenger(instance(), a));
-    g_communicator->add_connection(g_messenger);
-    g_messenger->set_dispatcher(shared_from_this());
+    f_communicator->add_connection(f_messenger);
+    f_messenger->finish_initialization(shared_from_this());
 
     // add the ticker, this wakes the system up once in a while so
     // we can gather statistics at a given interval
     //
-    g_tick_timer.reset(new tick_timer(instance(), f_statistics_frequency));
-    g_communicator->add_connection(g_tick_timer);
+    f_tick_timer = std::make_shared<tick_timer>(this);
+    f_communicator->add_connection(f_tick_timer);
 
     // start runner thread
     //
     f_worker = std::make_shared<sitter_worker>(shared_from_this());
     f_worker_thread = std::make_shared<cppthread::thread>("worker", f_worker);
+    f_worker_thread->start();
 
     // now start the run() loop
     //
-    g_communicator->run();
+    f_communicator->run();
 
     // got a RELOADCONFIG message?
     // (until our daemons are capable of reloading configuration files
@@ -736,7 +357,7 @@ int server::run()
  */
 bool server::send_message(ed::message & message, bool cache)
 {
-    return g_messenger->send_message(message, cache);
+    return f_messenger->send_message(message, cache);
 }
 
 
@@ -754,407 +375,65 @@ void server::process_tick()
 }
 
 
-/** \brief Initialize the sitter server parameters.
- *
- * This function gets the parameters from the sitter configuration file
- * and convert them for use by the server implementation.
- *
- * If a parameter is not valid, the function calls exit(1) so the server
- * does not do anything.
- *
- * \return true if the initialization succeeds, false if any parameter is
- * invalid.
- */
-bool server::init_parameters()
-{
-    // Time Frequency (how often we gather the stats)
-    {
-        f_statistics_frequency = f_opts.get_long("statistics-frequency");
-        if(f_statistics_frequency < 0)
-        {
-            SNAP_LOG_FATAL
-                << "statistic frequency ("
-                << f_statistics_frequency
-                << ") cannot be a negative number."
-                << SNAP_LOG_SEND;
-            return false;
-        }
-        if(f_statistics_frequency < 60)
-        {
-            // minimum is 1 minute
-            f_statistics_frequency = 60;
-        }
-    }
+//bool server::init_parameters()
+//{
+// the below code worked when we had all the parameters at hand, now that
+// we receive some of that data via fluid-settings, we may often not have a
+// fully stable state meaning that the tests would generate errors that are
+// just about to be fixed...
+//
+//    // now that all the priority & span numbers are defined we can verify
+//    // that they are properly sorted
+//    //
+//    if(f_error_report_medium_priority < f_error_report_low_priority)
+//    {
+//        SNAP_LOG_FATAL
+//            << "error report medium priority ("
+//            << f_error_report_medium_priority
+//            << ") cannot be less than the low priority ("
+//            << f_error_report_low_priority
+//            << ")."
+//            << SNAP_LOG_SEND;
+//        return false;
+//    }
+//    if(f_error_report_critical_priority < f_error_report_medium_priority)
+//    {
+//        SNAP_LOG_FATAL
+//            << "error report critical priority ("
+//            << f_error_report_critical_priority
+//            << ") cannot be less than the medium priority ("
+//            << f_error_report_medium_priority
+//            << ")."
+//            << SNAP_LOG_SEND;
+//        return false;
+//    }
+//
+//    if(f_error_report_medium_span > f_error_report_low_span)
+//    {
+//        SNAP_LOG_FATAL
+//            << "error report medium span ("
+//            << f_error_report_medium_span
+//            << ") cannot be more than the low span ("
+//            << f_error_report_low_span
+//            << ")."
+//            << SNAP_LOG_SEND;
+//        return false;
+//    }
+//    if(f_error_report_critical_span > f_error_report_medium_span)
+//    {
+//        SNAP_LOG_FATAL
+//            << "error report critical span ("
+//            << f_error_report_critical_span
+//            << ") cannot be more than the medium span ("
+//            << f_error_report_medium_span
+//            << ")."
+//            << SNAP_LOG_SEND;
+//        return false;
+//    }
+//
+//    return true;
+//}
 
-    // Time Period (how many stats we keep in the db)
-    {
-        f_statistics_period = f_opts.get_long("statistics-period");
-        if(f_statistics_period < 0)
-        {
-            SNAP_LOG_FATAL
-                << "statistic period ("
-                << f_statistics_period
-                << ") cannot be a negative number."
-                << SNAP_LOG_SEND;
-            return false;
-        }
-        if(f_statistics_period < 3600)
-        {
-            // minimum is 1 hour
-            //
-            f_statistics_period = 3600;
-        }
-        // round up to the hour, but keep it in seconds
-        //
-        f_statistics_period = (f_statistics_period + 3599) / 3600 * 3600;
-    }
-
-    // Time To Live (TTL, used to make sure we do not overcrowd the database)
-    {
-        std::string const statistics_ttl(f_opts.get_string("statistics-ttl"));
-        if(statistics_ttl == "off")
-        {
-            f_statistics_ttl = 0;
-        }
-        else if(statistics_ttl == "use-period")
-        {
-            f_statistics_ttl = f_statistics_period;
-        }
-        else
-        {
-            if(!advgetopt::validator_integer::convert_string(
-                      statistics_ttl
-                    , f_statistics_ttl))
-            {
-                SNAP_LOG_FATAL
-                    << "statistic ttl \""
-                    << statistics_ttl
-                    << "\" is not a valid number."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-            if(f_statistics_ttl < 0)
-            {
-                SNAP_LOG_FATAL
-                    << "statistic ttl ("
-                    << statistics_ttl
-                    << ") cannot be a negative number."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-            if(f_statistics_ttl != 0
-            && f_statistics_ttl < 3600)
-            {
-                // minimum is 1 hour
-                //
-                f_statistics_ttl = 3600;
-            }
-        }
-    }
-
-    // Amount of time before we start sending reports by email
-    {
-        f_error_report_settle_time = f_opts.get_long("error-report-settle-time");
-
-        if(f_error_report_settle_time < 0)
-        {
-            SNAP_LOG_FATAL
-                << "error report settle time ("
-                << f_error_report_settle_time
-                << ") cannot be a negative number."
-                << SNAP_LOG_SEND;
-            return false;
-        }
-        if(f_error_report_settle_time < 60)
-        {
-            // minimum is 1 minute
-            //
-            f_error_report_settle_time = 60;
-        }
-        // TBD: should we have a maximum like 1h?
-    }
-
-    // Low priority and span
-    {
-        std::string const low_priority(f_opts.get_string("error-report-low-priority"));
-        if(!low_priority.empty())
-        {
-            advgetopt::string_list_t prio_span;
-            advgetopt::split_string(low_priority, prio_span, {","});
-            if(prio_span.size() > 2)
-            {
-                SNAP_LOG_FATAL
-                    << "error report low priority \""
-                    << low_priority
-                    << "\" is expect to have two numbers separated by one comma. The second number is optional."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-
-            if(!advgetopt::validator_integer::convert_string(
-                          prio_span[0]
-                        , f_error_report_low_priority))
-            {
-                SNAP_LOG_FATAL
-                    << "error report low priority \""
-                    << low_priority
-                    << "\" is not a valid number."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-            if(f_error_report_low_priority < 1)
-            {
-                SNAP_LOG_FATAL
-                    << "error report low priority ("
-                    << low_priority
-                    << ") cannot be negative or null."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-            if(f_error_report_low_priority > 50)
-            {
-                // maximum is 50
-                //
-                f_error_report_low_priority = 50;
-            }
-
-            if(prio_span.size() == 2
-            && !prio_span[1].empty())
-            {
-                if(!advgetopt::validator_integer::convert_string(
-                              prio_span[1]
-                            , f_error_report_low_span))
-                {
-                    SNAP_LOG_FATAL
-                        << "error report low span \""
-                        << low_priority
-                        << "\" is not a valid number."
-                        << SNAP_LOG_SEND;
-                    return false;
-                }
-                if(f_error_report_low_span < 0)
-                {
-                    SNAP_LOG_FATAL
-                        << "error report low span ("
-                        << low_priority
-                        << ") cannot be negative or null."
-                        << SNAP_LOG_SEND;
-                    return false;
-                }
-                if(f_error_report_low_span < 86400)
-                {
-                    // minimum is one day
-                    //
-                    f_error_report_low_span = 86400;
-                }
-            }
-        }
-    }
-
-    // Medium priority and span
-    {
-        std::string const medium_priority(f_opts.get_string("error-report-medium-priority"));
-        if(!medium_priority.empty())
-        {
-            advgetopt::string_list_t prio_span;
-            advgetopt::split_string(medium_priority, prio_span, {","});
-            if(prio_span.size() > 2)
-            {
-                SNAP_LOG_FATAL
-                    << "error report medium priority \""
-                    << medium_priority
-                    << "\" is expect to have two numbers separated by one comma. The second number is optional."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-
-            if(!advgetopt::validator_integer::convert_string(
-                          prio_span[0]
-                        , f_error_report_medium_priority))
-            {
-                SNAP_LOG_FATAL
-                    << "error report medium priority \""
-                    << medium_priority
-                    << "\" is not a valid number."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-            if(f_error_report_medium_priority < 1)
-            {
-                SNAP_LOG_FATAL
-                    << "error report medium priority ("
-                    << medium_priority
-                    << ") cannot be negative or null."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-
-            if(prio_span.size() == 2
-            && !prio_span[1].empty())
-            {
-                if(!advgetopt::validator_integer::convert_string(
-                              prio_span[1]
-                            , f_error_report_medium_span))
-                {
-                    SNAP_LOG_FATAL
-                        << "error report medium span \""
-                        << medium_priority
-                        << "\" is not a valid number."
-                        << SNAP_LOG_SEND;
-                    return false;
-                }
-                if(f_error_report_medium_span < 0)
-                {
-                    SNAP_LOG_FATAL
-                        << "error report medium span ("
-                        << medium_priority
-                        << ") cannot be negative or null."
-                        << SNAP_LOG_SEND;
-                    return false;
-                }
-                if(f_error_report_medium_span < 3600)
-                {
-                    // minimum is one hour
-                    //
-                    f_error_report_medium_span = 3600;
-                }
-            }
-        }
-    }
-
-    // Critical priority and span
-    {
-        std::string const critical_priority(f_opts.get_string("error-report-critical-priority"));
-        if(!critical_priority.empty())
-        {
-            advgetopt::string_list_t prio_span;
-            advgetopt::split_string(critical_priority, prio_span, {","});
-            if(prio_span.size() > 2)
-            {
-                SNAP_LOG_FATAL
-                    << "error report critical priority \""
-                    << critical_priority
-                    << "\" is expect to have two numbers separated by one comma. The second number is optional."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-
-            if(!advgetopt::validator_integer::convert_string(
-                          prio_span[0]
-                        , f_error_report_critical_priority))
-            {
-                SNAP_LOG_FATAL
-                    << "error report critical priority \""
-                    << critical_priority
-                    << "\" is not a valid number."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-            if(f_error_report_critical_priority < 1)
-            {
-                SNAP_LOG_FATAL
-                    << "error report critical priority ("
-                    << critical_priority
-                    << ") cannot be negative or null."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-            if(f_error_report_critical_priority > 100)
-            {
-                // TBD: should we just clamp silently instead of a fatal error?
-                //
-                SNAP_LOG_FATAL
-                    << "error report critical priority ("
-                    << critical_priority
-                    << ") cannot be larger than 100."
-                    << SNAP_LOG_SEND;
-                return false;
-            }
-
-            if(prio_span.size() == 2
-            && !prio_span[1].empty())
-            {
-                if(!advgetopt::validator_integer::convert_string(
-                              prio_span[1]
-                            , f_error_report_critical_span))
-                {
-                    SNAP_LOG_FATAL
-                        << "error report critical span \""
-                        << critical_priority
-                        << "\" is not a valid number."
-                        << SNAP_LOG_SEND;
-                    return false;
-                }
-                if(f_error_report_critical_span < 0)
-                {
-                    SNAP_LOG_FATAL
-                        << "error report critical span ("
-                        << critical_priority
-                        << ") cannot be negative or null."
-                        << SNAP_LOG_SEND;
-                    return false;
-                }
-                if(f_error_report_critical_span < 300)
-                {
-                    // minimum is five minutes
-                    //
-                    f_error_report_critical_span = 300;
-                }
-            }
-        }
-    }
-
-    // now that all the priority & span numbers are defined we can verify
-    // that they are properly sorted
-    //
-    if(f_error_report_medium_priority < f_error_report_low_priority)
-    {
-        SNAP_LOG_FATAL
-            << "error report medium priority ("
-            << f_error_report_medium_priority
-            << ") cannot be less than the low priority ("
-            << f_error_report_low_priority
-            << ")."
-            << SNAP_LOG_SEND;
-        return false;
-    }
-    if(f_error_report_critical_priority < f_error_report_medium_priority)
-    {
-        SNAP_LOG_FATAL
-            << "error report critical priority ("
-            << f_error_report_critical_priority
-            << ") cannot be less than the medium priority ("
-            << f_error_report_medium_priority
-            << ")."
-            << SNAP_LOG_SEND;
-        return false;
-    }
-
-    if(f_error_report_medium_span > f_error_report_low_span)
-    {
-        SNAP_LOG_FATAL
-            << "error report medium span ("
-            << f_error_report_medium_span
-            << ") cannot be more than the low span ("
-            << f_error_report_low_span
-            << ")."
-            << SNAP_LOG_SEND;
-        return false;
-    }
-    if(f_error_report_critical_span > f_error_report_medium_span)
-    {
-        SNAP_LOG_FATAL
-            << "error report critical span ("
-            << f_error_report_critical_span
-            << ") cannot be more than the medium span ("
-            << f_error_report_medium_span
-            << ")."
-            << SNAP_LOG_SEND;
-        return false;
-    }
-
-    return true;
-}
 
 
 void server::msg_rusage(ed::message & message)
@@ -1165,22 +444,37 @@ void server::msg_rusage(ed::message & message)
 
 void server::ready(ed::message & message)
 {
-    snapdev::NOT_USED(message);
-
-    // TBD: should we wait on this signal before we start the g_tick_timer?
-    //      since we do not need the snap communicator, probably not useful
-    //      (however, we like to have Cassandra and we know Cassandra is
-    //      ready only after a we got the CASSANDRAREADY anyway...)
+    // WARNING: the sitter is unusual as we derive the server class from
+    //          ed::dispatcher which is not usually the way to do it; instead
+    //          you want to look at doing so from the messenger and that way
+    //          you get the ready() call as expected to the fluid-settings
+    //          connection; in this case we instead have to call that other
+    //          implementation explicitly
     //
+    f_messenger->ready(message);
 
-    // request snapdbproxy to send us a status signal about
-    // Cassandra, after that one call, we will receive the
-    // changes in status just because we understand them.
-    //
-    ed::message isdbready_message;
-    isdbready_message.set_command("CASSANDRASTATUS");
-    isdbready_message.set_service("snapdbproxy");
-    g_messenger->send_message(isdbready_message);
+    set_communicatord_connected(true);
+
+//    // TBD: should we wait on this signal before we start the g_tick_timer?
+//    //      since we do not need the snap communicator, probably not useful
+//    //      (however, we like to have Cassandra and we know Cassandra is
+//    //      ready only after a we got the CASSANDRAREADY anyway...)
+//    //
+//
+//    // request snapdbproxy to send us a status signal about
+//    // Cassandra, after that one call, we will receive the
+//    // changes in status just because we understand them.
+//    //
+//    ed::message isdbready_message;
+//    isdbready_message.set_command("CASSANDRASTATUS");
+//    isdbready_message.set_service("snapdbproxy");
+//    f_messenger->send_message(isdbready_message);
+}
+
+
+void server::fluid_ready()
+{
+    f_tick_timer->set_enable(true);
 }
 
 
@@ -1193,44 +487,555 @@ void server::msg_reload_config(ed::message & message)
 }
 
 
-int64_t server::get_error_report_settle_time() const
+
+
+/** \brief Get the amount of time to wait between attempt at gathering stats.
+ *
+ * This value is the amount of time between statistics gatherings. The
+ * amount of time it takes to gather the statistics is not included. So
+ * if it takes 20 seconds to gather the statistics and the gathering is
+ * set at 3 minutes, then once done gathering statistics we wait another
+ * 3 minutes - 20 seconds (2 minutes and 40 seconds) before the next
+ * gathering.
+ *
+ * The function caches the data. When the value changes, the fluid status
+ * makes sure to clear the cached value.
+ *
+ * \return The duration in seconds.
+ */
+std::int64_t server::get_statistics_frequency()
 {
+    if(f_statistics_frequency <= 0)
+    {
+        std::string const statistics_frequency_str(f_opts.get_string("statistics-frequency"));
+        std::int64_t statistics_frequency(DEFAULT_STATISTICS_FREQUENCY);
+        double duration(0.0);
+        if(advgetopt::validator_duration::convert_string(
+                  statistics_frequency_str
+                , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                , duration))
+        {
+            statistics_frequency = static_cast<std::int64_t>(ceil(duration));
+            if(statistics_frequency < 0)
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "statistic frequency ("
+                    << statistics_frequency_str
+                    << ") cannot be a negative number. Using default instead."
+                    << SNAP_LOG_SEND;
+                statistics_frequency = DEFAULT_STATISTICS_FREQUENCY;
+            }
+        }
+        else
+        {
+            SNAP_LOG_RECOVERABLE_ERROR
+                << "statistic frequency ("
+                << statistics_frequency_str
+                << ") is not a valid duration. Using default instead."
+                << SNAP_LOG_SEND;
+        }
+
+        // minimum is 1 minute
+        //
+        f_statistics_frequency = std::max(MINIMUM_STATISTICS_FREQUENCY, statistics_frequency);
+    }
+
+    return f_statistics_frequency;
+}
+
+
+/** \brief Get the period of time for which the statistics are kept.
+ *
+ * The statistics are saved in files. After a while, we delete old files.
+ * This value defines how old the oldest statistics kept can be.
+ *
+ * \return The statistics period.
+ */
+std::int64_t server::get_statistics_period()
+{
+    if(f_statistics_period <= 0)
+    {
+        std::int64_t statistics_period(DEFAULT_STATISTICS_PERIOD);
+        std::string const statistics_period_str(f_opts.get_string("statistics-period"));
+        double duration(0.0);
+        if(advgetopt::validator_duration::convert_string(
+                  statistics_period_str
+                , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                , duration))
+        {
+            statistics_period = static_cast<std::int64_t>(ceil(duration));
+            if(statistics_period < 0)
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "statistic period ("
+                    << statistics_period_str
+                    << ") cannot be a negative number."
+                    << SNAP_LOG_SEND;
+                statistics_period = DEFAULT_STATISTICS_PERIOD;
+            }
+        }
+        else
+        {
+            SNAP_LOG_RECOVERABLE_ERROR
+                << "statistics-period \""
+                << statistics_period_str
+                << "\" is not a valid duration."
+                << SNAP_LOG_SEND;
+        }
+        statistics_period = std::max(MINIMUM_STATISTICS_PERIOD, statistics_period);
+
+        // round up
+        //
+        f_statistics_period = (statistics_period + (ROUND_STATISTICS_PERIOD - 1)) / ROUND_STATISTICS_PERIOD * ROUND_STATISTICS_PERIOD;
+    }
+
+    return f_statistics_period;
+}
+
+
+/** \brief Time To Live.
+ *
+ * The Time to Live (TTL) is used to make sure we do not overcrowd the
+ * database. This can be turned off ("off") or marked to make use of
+ * the exact same amount as defined in the statistics-period ("use-period").
+ * Otherwise, it must be a duration representing the time to live.
+ *
+ * \note
+ * At this time, we may not use this value depending on where the values
+ * get saved. (i.e. we are not using Casandra anymore)
+ *
+ * \note
+ * Internally, "off" is represented by 0.
+ *
+ * \return The maximum time to live in the database.
+ */
+std::int64_t server::get_statistics_ttl()
+{
+    if(f_statistics_ttl < 0)
+    {
+        std::string const statistics_ttl_str(f_opts.get_string("statistics-ttl"));
+        if(statistics_ttl_str == "off")
+        {
+            f_statistics_ttl = 0;
+        }
+        else if(statistics_ttl_str == "use-period")
+        {
+            f_statistics_ttl = get_statistics_period();
+        }
+        else
+        {
+            std::int64_t statistics_ttl(DEFAULT_STATISTICS_TTL);
+            double duration(0.0);
+            if(advgetopt::validator_duration::convert_string(
+                      statistics_ttl_str
+                    , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                    , duration))
+            {
+                statistics_ttl = static_cast<std::int64_t>(ceil(duration));
+                if(statistics_ttl < 0)
+                {
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "statistic ttl ("
+                        << statistics_ttl_str
+                        << ") cannot be a negative number."
+                        << SNAP_LOG_SEND;
+                    statistics_ttl = DEFAULT_STATISTICS_TTL;
+                }
+            }
+            else
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "statistic ttl \""
+                    << statistics_ttl
+                    << "\" is not a valid number."
+                    << SNAP_LOG_SEND;
+            }
+
+            f_statistics_ttl = std::max(MINIMUM_STATISTICS_TTL, statistics_ttl);
+        }
+    }
+
+    return f_statistics_ttl;
+}
+
+
+/** \brief Amount of time before we start sending reports by email
+ *
+ * Often the first few minutes can be hectic on a server since many things
+ * start all at the same time. For that reason, we do not want to start
+ * reporting issues just after a reboot. This duration defines the amount
+ * of time to wait for things to settle.
+ *
+ * \return The duration since starting this process to wait before starting
+ * to send emails on errors.
+ */
+std::int64_t server::get_error_report_settle_time()
+{
+    if(f_error_report_settle_time < 0)
+    {
+        std::int64_t error_report_settle_time(DEFAULT_ERROR_REPORT_SETTLE_TIME);
+        std::string const error_report_settle_time_str(f_opts.get_string("error-report-settle-time"));
+        double duration(0.0);
+        if(advgetopt::validator_duration::convert_string(
+                  error_report_settle_time_str
+                , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                , duration))
+        {
+            error_report_settle_time = static_cast<std::int64_t>(ceil(duration));
+            if(error_report_settle_time < 0)
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "error report settle time ("
+                    << error_report_settle_time_str
+                    << ") cannot be a negative number."
+                    << SNAP_LOG_SEND;
+                error_report_settle_time = DEFAULT_ERROR_REPORT_SETTLE_TIME;
+            }
+            f_error_report_settle_time = std::max(MINIMUM_ERROR_REPORT_SETTLE_TIME, error_report_settle_time);
+            // TBD: should we have a maximum like 1h?
+        }
+        else
+        {
+            SNAP_LOG_RECOVERABLE_ERROR
+                << "error report settle time ("
+                << error_report_settle_time_str
+                << ") is not a valid duration."
+                << SNAP_LOG_SEND;
+        }
+    }
+
     return f_error_report_settle_time;
 }
 
 
-int64_t server::get_error_report_low_priority() const
+/** \brief Low priority and span.
+ *
+ * Define what is considered low priority. This allows us to avoid error
+ * messages when a small issue appears. The issue may disappear opn its own
+ * with time, in which case it was not much of an issue, or it will be taken
+ * care of whenever the administrator checks the system closely.
+ *
+ * \return The low priority of error reports.
+ */
+std::int64_t server::get_error_report_low_priority()
 {
+    if(f_error_report_low_priority < 0)
+    {
+        f_error_report_low_priority = DEFAULT_ERROR_REPORT_LOW_PRIORITY;
+        f_error_report_low_span = DEFAULT_ERROR_REPORT_LOW_SPAN;
+
+        std::string const low_priority_str(f_opts.get_string("error-report-low-priority"));
+        if(!low_priority_str.empty())
+        {
+            advgetopt::string_list_t prio_span;
+            advgetopt::split_string(low_priority_str, prio_span, {","});
+            if(prio_span.size() > 2)
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "error report low priority \""
+                    << low_priority_str
+                    << "\" is expect to have two numbers separated by one comma. The second number is optional."
+                    << SNAP_LOG_SEND;
+                // ignore the 3rd, etc.
+            }
+
+            // LOW PRIORITY
+            //
+            if(advgetopt::validator_integer::convert_string(
+                          prio_span[0]
+                        , f_error_report_low_priority))
+            {
+                if(f_error_report_low_priority < MINIMUM_ERROR_REPORT_LOW_PRIORITY)
+                {
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "error report low priority ("
+                        << low_priority_str
+                        << ") cannot be less than "
+                        << MINIMUM_ERROR_REPORT_LOW_PRIORITY
+                        << "."
+                        << SNAP_LOG_SEND;
+                    f_error_report_low_priority = MINIMUM_ERROR_REPORT_LOW_PRIORITY;
+                }
+                else if(f_error_report_low_priority > MAXIMUM_ERROR_REPORT_LOW_PRIORITY)
+                {
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "error report low priority ("
+                        << low_priority_str
+                        << ") cannot be more than "
+                        << MAXIMUM_ERROR_REPORT_LOW_PRIORITY
+                        << "."
+                        << SNAP_LOG_SEND;
+                    f_error_report_low_priority = MAXIMUM_ERROR_REPORT_LOW_PRIORITY;
+                }
+            }
+            else
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "error report low priority \""
+                    << low_priority_str
+                    << "\" is not a valid number."
+                    << SNAP_LOG_SEND;
+            }
+
+            // LOW SPAN
+            //
+            if(prio_span.size() >= 2
+            && !prio_span[1].empty())
+            {
+                double duration(0.0);
+                if(advgetopt::validator_duration::convert_string(
+                              prio_span[1]
+                            , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                            , duration))
+                {
+                    f_error_report_low_span = static_cast<std::int64_t>(ceil(duration));
+                    if(f_error_report_low_span <= 0)
+                    {
+                        SNAP_LOG_FATAL
+                            << "error report low span ("
+                            << low_priority_str
+                            << ") cannot be negative or null."
+                            << SNAP_LOG_SEND;
+                        f_error_report_low_span = DEFAULT_ERROR_REPORT_LOW_SPAN;
+                    }
+                    else if(f_error_report_low_span < MINIMUM_ERROR_REPORT_LOW_SPAN)
+                    {
+                        f_error_report_low_span = MINIMUM_ERROR_REPORT_LOW_SPAN;
+                    }
+                }
+                else
+                {
+                    SNAP_LOG_FATAL
+                        << "error report low span \""
+                        << low_priority_str
+                        << "\" is not a valid number."
+                        << SNAP_LOG_SEND;
+                }
+            }
+        }
+    }
+
     return f_error_report_low_priority;
 }
 
 
-int64_t server::get_error_report_low_span() const
+std::int64_t server::get_error_report_low_span()
 {
+    snapdev::NOT_USED(get_error_report_low_priority());
     return f_error_report_low_span;
 }
 
 
-int64_t server::get_error_report_medium_priority() const
+std::int64_t server::get_error_report_medium_priority()
 {
+    if(f_error_report_medium_priority < 0)
+    {
+        f_error_report_medium_priority = DEFAULT_ERROR_REPORT_MEDIUM_PRIORITY;
+        f_error_report_medium_span = DEFAULT_ERROR_REPORT_MEDIUM_SPAN;
+        std::string const medium_priority_str(f_opts.get_string("error-report-medium-priority"));
+        if(!medium_priority_str.empty())
+        {
+            advgetopt::string_list_t prio_span;
+            advgetopt::split_string(medium_priority_str, prio_span, {","});
+            if(prio_span.size() > 2)
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "error report medium priority \""
+                    << medium_priority_str
+                    << "\" is expect to have two numbers separated by one comma. The second number is optional."
+                    << SNAP_LOG_SEND;
+                // ignore the 3rd, etc.
+            }
+
+            if(advgetopt::validator_integer::convert_string(
+                          prio_span[0]
+                        , f_error_report_medium_priority))
+            {
+                if(f_error_report_medium_priority < MINIMUM_ERROR_REPORT_MEDIUM_PRIORITY)
+                {
+                    // TBD: should we just clamp silently instead of a fatal error?
+                    //
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "error report medium priority ("
+                        << medium_priority_str
+                        << ") cannot be larger than "
+                        << MAXIMUM_ERROR_REPORT_MEDIUM_PRIORITY
+                        << "."
+                        << SNAP_LOG_SEND;
+                    f_error_report_medium_priority = MINIMUM_ERROR_REPORT_MEDIUM_PRIORITY;
+                }
+                else if(f_error_report_medium_priority > MAXIMUM_ERROR_REPORT_MEDIUM_PRIORITY)
+                {
+                    // TBD: should we just clamp silently instead of a fatal error?
+                    //
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "error report medium priority ("
+                        << medium_priority_str
+                        << ") cannot be larger than "
+                        << MAXIMUM_ERROR_REPORT_MEDIUM_PRIORITY
+                        << "."
+                        << SNAP_LOG_SEND;
+                    f_error_report_medium_priority = MAXIMUM_ERROR_REPORT_MEDIUM_PRIORITY;
+                }
+            }
+            else
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "error report medium priority \""
+                    << medium_priority_str
+                    << "\" is not a valid number."
+                    << SNAP_LOG_SEND;
+            }
+
+            if(prio_span.size() >= 2
+            && !prio_span[1].empty())
+            {
+                double duration(0.0);
+                if(advgetopt::validator_duration::convert_string(
+                              prio_span[1]
+                            , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                            , duration))
+                {
+                    f_error_report_medium_span = static_cast<std::int64_t>(ceil(duration));
+                    if(f_error_report_medium_span < 0)
+                    {
+                        SNAP_LOG_RECOVERABLE_ERROR
+                            << "error report medium span ("
+                            << medium_priority_str
+                            << ") cannot be negative."
+                            << SNAP_LOG_SEND;
+                        f_error_report_medium_span = DEFAULT_ERROR_REPORT_MEDIUM_SPAN;
+                    }
+                    else if(f_error_report_medium_span < MINIMUM_ERROR_REPORT_MEDIUM_SPAN)
+                    {
+                        f_error_report_medium_span = MINIMUM_ERROR_REPORT_MEDIUM_SPAN;
+                    }
+                }
+                else
+                {
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "error report medium span \""
+                        << medium_priority_str
+                        << "\" is not a valid number."
+                        << SNAP_LOG_SEND;
+                }
+            }
+        }
+    }
+
     return f_error_report_medium_priority;
 }
 
 
-int64_t server::get_error_report_medium_span() const
+std::int64_t server::get_error_report_medium_span()
 {
+    snapdev::NOT_USED(get_error_report_medium_priority());
     return f_error_report_medium_span;
 }
 
 
-int64_t server::get_error_report_critical_priority() const
+int64_t server::get_error_report_critical_priority()
 {
+    if(f_error_report_critical_priority < 0)
+    {
+        f_error_report_critical_priority = DEFAULT_ERROR_REPORT_CRITICAL_PRIORITY;
+        f_error_report_critical_span = DEFAULT_ERROR_REPORT_CRITICAL_SPAN;
+        std::string const critical_priority_str(f_opts.get_string("error-report-critical-priority"));
+        if(!critical_priority_str.empty())
+        {
+            advgetopt::string_list_t prio_span;
+            advgetopt::split_string(critical_priority_str, prio_span, {","});
+            if(prio_span.size() > 2)
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "error report critical priority \""
+                    << critical_priority_str
+                    << "\" is expect to have two numbers separated by one comma. The second number is optional."
+                    << SNAP_LOG_SEND;
+                return false;
+            }
+
+            if(advgetopt::validator_integer::convert_string(
+                          prio_span[0]
+                        , f_error_report_critical_priority))
+            {
+                if(f_error_report_critical_priority < MINIMUM_ERROR_REPORT_CRITICAL_PRIORITY)
+                {
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "error report critical priority ("
+                        << critical_priority_str
+                        << ") cannot be less than "
+                        << MINIMUM_ERROR_REPORT_CRITICAL_PRIORITY
+                        << "."
+                        << SNAP_LOG_SEND;
+                    f_error_report_critical_priority = DEFAULT_ERROR_REPORT_CRITICAL_PRIORITY;
+                }
+                else if(f_error_report_critical_priority > MAXIMUM_ERROR_REPORT_CRITICAL_PRIORITY)
+                {
+                    // TBD: should we just clamp silently instead of a fatal error?
+                    //
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "error report critical priority ("
+                        << critical_priority_str
+                        << ") cannot be larger than "
+                        << MAXIMUM_ERROR_REPORT_CRITICAL_PRIORITY
+                        << "."
+                        << SNAP_LOG_SEND;
+                    f_error_report_critical_priority = DEFAULT_ERROR_REPORT_CRITICAL_PRIORITY;
+                }
+            }
+            else
+            {
+                SNAP_LOG_RECOVERABLE_ERROR
+                    << "error report critical priority \""
+                    << critical_priority_str
+                    << "\" is not a valid number."
+                    << SNAP_LOG_SEND;
+            }
+
+            if(prio_span.size() == 2
+            && !prio_span[1].empty())
+            {
+                double duration(0.0);
+                if(advgetopt::validator_duration::convert_string(
+                              prio_span[1]
+                            , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                            , duration))
+                {
+                    f_error_report_critical_span = static_cast<std::int64_t>(ceil(duration));
+                    if(f_error_report_critical_span < 0)
+                    {
+                        SNAP_LOG_RECOVERABLE_ERROR
+                            << "error report critical span ("
+                            << critical_priority_str
+                            << ") cannot be negative."
+                            << SNAP_LOG_SEND;
+                        f_error_report_critical_span = DEFAULT_ERROR_REPORT_CRITICAL_SPAN;
+                    }
+                    else if(f_error_report_critical_span < MINIMUM_ERROR_REPORT_CRITICAL_SPAN)
+                    {
+                        f_error_report_critical_span = MINIMUM_ERROR_REPORT_CRITICAL_SPAN;
+                    }
+                }
+                else
+                {
+                    SNAP_LOG_RECOVERABLE_ERROR
+                        << "error report critical span \""
+                        << critical_priority_str
+                        << "\" is not a valid number."
+                        << SNAP_LOG_SEND;
+                }
+            }
+        }
+    }
+
     return f_error_report_critical_priority;
 }
 
 
-int64_t server::get_error_report_critical_span() const
+std::int64_t server::get_error_report_critical_span()
 {
+    snapdev::NOT_USED(get_error_report_critical_priority());
     return f_error_report_critical_span;
 }
 
@@ -1246,6 +1051,61 @@ int server::get_ticks() const
     return f_ticks;
 }
 
+
+
+void server::clear_cache(std::string const & name)
+{
+    if(name.empty())
+    {
+        return;
+    }
+
+    switch(name[0])
+    {
+    case 'e':
+        if(name == "error-report-settle-time")
+        {
+            f_error_report_settle_time = -1;
+        }
+        else if(name == "error-report-low-priority")
+        {
+            f_error_report_low_priority = -1;
+            f_error_report_low_span = -1;
+        }
+        else if(name == "error-report-medium-priority")
+        {
+            f_error_report_medium_priority = -1;
+            f_error_report_medium_span = -1;
+        }
+        else if(name == "error-report-critical-priority")
+        {
+            f_error_report_critical_priority = -1;
+            f_error_report_critical_span = -1;
+        }
+        break;
+
+    case 's':
+        if(name == "statistics-frequency")
+        {
+            f_statistics_frequency = -1;
+        }
+        else if(name == "statistics-period")
+        {
+            f_statistics_period = -1;
+
+            // the TTL may make use of the statistics period so we need to
+            // reset that one too in this case
+            //
+            f_statistics_ttl = -1;
+        }
+        else if(name == "statistics-ttl")
+        {
+            f_statistics_ttl = -1;
+        }
+        break;
+
+    }
+}
 
 
 bool server::output_process(
@@ -1314,32 +1174,14 @@ void server::stop(bool quitting)
 
     f_stopping = true;
 
-    if(g_messenger != nullptr)
-    {
-        if(quitting || !g_messenger->is_connected())
-        {
-            // turn off that connection now, we cannot UNREGISTER since
-            // we are not connected to communicatord
-            //
-            g_communicator->remove_connection(g_messenger);
-            g_messenger.reset();
-        }
-        else
-        {
-            g_messenger->mark_done();
 
-            // if not communicatord is not quitting, send an UNREGISTER
-            //
-            g_messenger->unregister_service();
-            //ed::message unregister;
-            //unregister.set_command("UNREGISTER");
-            //unregister.add_parameter("service", "sitter");
-            //g_messenger->send_message(unregister);
-        }
+    if(f_messenger != nullptr)
+    {
+        f_messenger->unregister_communicator(quitting);
     }
 
-    g_communicator->remove_connection(g_interrupt);
-    g_communicator->remove_connection(g_tick_timer);
+    f_communicator->remove_connection(f_interrupt);
+    f_communicator->remove_connection(f_tick_timer);
 }
 
 

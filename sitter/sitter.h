@@ -19,18 +19,15 @@
 
 // self
 //
+#include    <sitter/interrupt.h>
+#include    <sitter/messenger.h>
 #include    <sitter/sitter_worker.h>
+#include    <sitter/tick_timer.h>
 
 
 // eventdispatcher
 //
-#include    <eventdispatcher/dispatcher.h>
-#include    <eventdispatcher/logrotate_udp_messenger.h>
-
-
-// advgetopt
-//
-#include    <advgetopt/options.h>
+#include    <eventdispatcher/communicator.h>
 
 
 // serverplugins
@@ -49,10 +46,6 @@
 #include    <cppthread/thread.h>
 
 
-// as2js
-//
-#include    <as2js/json.h>
-
 
 
 namespace sitter
@@ -70,16 +63,41 @@ class server
 public:
     typedef std::shared_ptr<server>         pointer_t;
 
+    static constexpr std::int64_t const     MINIMUM_STATISTICS_FREQUENCY           = 60;      // 1 minute
+    static constexpr std::int64_t const     DEFAULT_STATISTICS_FREQUENCY           = 60;      // 1 minute
+    static constexpr std::int64_t const     MINIMUM_STATISTICS_PERIOD              = 3600;    // 1 hour
+    static constexpr std::int64_t const     DEFAULT_STATISTICS_PERIOD              = 604800;  // 1 week
+    static constexpr std::int64_t const     ROUND_STATISTICS_PERIOD                = 3600;    // round up to 1h
+    static constexpr std::int64_t const     DEFAULT_STATISTICS_TTL                 = 604800;  // 1 week
+    static constexpr std::int64_t const     MINIMUM_STATISTICS_TTL                 = 3600;    // 1 hour
+    static constexpr std::int64_t const     DEFAULT_ERROR_REPORT_SETTLE_TIME       = 300;     // 5 minutes
+    static constexpr std::int64_t const     MINIMUM_ERROR_REPORT_SETTLE_TIME       = 60;      // 1 minute
+    static constexpr std::int64_t const     DEFAULT_ERROR_REPORT_LOW_PRIORITY      = 10;
+    static constexpr std::int64_t const     MINIMUM_ERROR_REPORT_LOW_PRIORITY      = 1;
+    static constexpr std::int64_t const     MAXIMUM_ERROR_REPORT_LOW_PRIORITY      = 50;
+    static constexpr std::int64_t const     DEFAULT_ERROR_REPORT_LOW_SPAN          = 604800;  // 1 week
+    static constexpr std::int64_t const     MINIMUM_ERROR_REPORT_LOW_SPAN          = 86400;   // 1 day
+    static constexpr std::int64_t const     DEFAULT_ERROR_REPORT_MEDIUM_PRIORITY   = 50;
+    static constexpr std::int64_t const     MINIMUM_ERROR_REPORT_MEDIUM_PRIORITY   = 10;
+    static constexpr std::int64_t const     MAXIMUM_ERROR_REPORT_MEDIUM_PRIORITY   = 90;
+    static constexpr std::int64_t const     DEFAULT_ERROR_REPORT_MEDIUM_SPAN       = 259200;  // 3 days
+    static constexpr std::int64_t const     MINIMUM_ERROR_REPORT_MEDIUM_SPAN       = 3600;    // 1 hour
+    static constexpr std::int64_t const     DEFAULT_ERROR_REPORT_CRITICAL_PRIORITY = 90;
+    static constexpr std::int64_t const     MINIMUM_ERROR_REPORT_CRITICAL_PRIORITY = 1;
+    static constexpr std::int64_t const     MAXIMUM_ERROR_REPORT_CRITICAL_PRIORITY = 100;
+    static constexpr std::int64_t const     DEFAULT_ERROR_REPORT_CRITICAL_SPAN     = 86400;   // 1 day
+    static constexpr std::int64_t const     MINIMUM_ERROR_REPORT_CRITICAL_SPAN     = 300;     // 5 minutes
+
                         server(int argc, char * argv[]);
 
     static void         set_instance(pointer_t s);
     static pointer_t    instance();
     int                 run();
 
-    int64_t             get_statistics_period() const { return f_statistics_period; }
-    int64_t             get_statistics_ttl() const { return f_statistics_ttl; }
     void                ready(ed::message & message);
+    void                fluid_ready();
     void                stop(bool quitting);
+
     void                set_communicatord_connected(bool status);
     void                set_communicatord_disconnected(bool status);
     bool                get_communicatord_is_connected() const;
@@ -97,13 +115,11 @@ public:
     // internal functions (these are NOT virtual)
     // 
     void                process_tick();
-    void                process_sigchld();
 
-    //void                msg_nocassandra(ed::message & message);
-    //void                msg_cassandraready(ed::message & message);
     void                msg_rusage(ed::message & message);
     void                msg_reload_config(ed::message & message);
 
+    void                clear_cache(std::string const & name);
     bool                output_process(
                               std::string const & plugin_name
                             , as2js::JSON::JSONValueRef & json
@@ -120,35 +136,45 @@ public:
     int                 get_error_count() const;
     int                 get_max_error_priority() const;
 
-    int64_t             get_error_report_settle_time() const;
-    int64_t             get_error_report_low_priority() const;
-    int64_t             get_error_report_low_span() const;
-    int64_t             get_error_report_medium_priority() const;
-    int64_t             get_error_report_medium_span() const;
-    int64_t             get_error_report_critical_priority() const;
-    int64_t             get_error_report_critical_span() const;
+    std::int64_t        get_statistics_frequency();
+    std::int64_t        get_statistics_period();
+    std::int64_t        get_statistics_ttl();
+    std::int64_t        get_error_report_settle_time();
+    std::int64_t        get_error_report_low_priority();
+    std::int64_t        get_error_report_low_span();
+    std::int64_t        get_error_report_medium_priority();
+    std::int64_t        get_error_report_medium_span();
+    std::int64_t        get_error_report_critical_priority();
+    std::int64_t        get_error_report_critical_span();
 
     void                set_ticks(int ticks);
     int                 get_ticks() const;
 
 private:
     void                define_server_name();
-    bool                init_parameters();
     void                record_usage(ed::message const & message);
+    void                add_plugin_options();
 
     advgetopt::getopt   f_opts;
-    ed::logrotate_extension
-                        f_logrotate;
-    int64_t             f_statistics_frequency = 0;
-    int64_t             f_statistics_period = 0;
-    int64_t             f_statistics_ttl = 0;
-    int64_t             f_error_report_settle_time = 5 * 60;
-    int64_t             f_error_report_low_priority = 10;
-    int64_t             f_error_report_low_span = 86400 * 7;
-    int64_t             f_error_report_medium_priority = 50;
-    int64_t             f_error_report_medium_span = 86400 * 3;
-    int64_t             f_error_report_critical_priority = 90;
-    int64_t             f_error_report_critical_span = 86400 * 1;
+    ed::communicator::pointer_t
+                        f_communicator = ed::communicator::pointer_t();
+    interrupt::pointer_t
+                        f_interrupt = interrupt::pointer_t();
+    tick_timer::pointer_t
+                        f_tick_timer = tick_timer::pointer_t();
+    messenger::pointer_t
+                        f_messenger = messenger::pointer_t();
+
+    std::int64_t        f_statistics_frequency = -1;
+    std::int64_t        f_statistics_period = -1;
+    std::int64_t        f_statistics_ttl = -1;
+    std::int64_t        f_error_report_settle_time = -1;
+    std::int64_t        f_error_report_low_priority = -1;
+    std::int64_t        f_error_report_low_span = -1;
+    std::int64_t        f_error_report_medium_priority = -1;
+    std::int64_t        f_error_report_medium_span = -1;
+    std::int64_t        f_error_report_critical_priority = -1;
+    std::int64_t        f_error_report_critical_span = -1;
     int                 f_error_count = 0;
     int                 f_max_error_priority = 0;
     bool                f_stopping = false;

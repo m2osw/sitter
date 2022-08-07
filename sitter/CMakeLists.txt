@@ -27,20 +27,25 @@ configure_file(
 )
 
 add_library(${PROJECT_NAME} SHARED
+    interrupt.cpp
     meminfo.cpp
+    messenger.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     sitter.cpp
     sitter_worker.cpp
     sys_stats.cpp
+    tick_timer.cpp
     version.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         ${AS2JS_INCLUDE_DIRS}
+        ${COMMUNICATORD_INCLUDE_DIRS}
         ${CPPPROCESS_INCLUDE_DIRS}
         ${EDHTTP_INCLUDE_DIRS}
         ${EVENTDISPATCHER_INCLUDE_DIRS}
+        ${FLUIDSETTINGS_INCLUDE_DIRS}
         ${LIBEXCEPT_INCLUDE_DIRS}
         ${LIBMIMEMAIL_INCLUDE_DIRS}
         ${SERVERPLUGINS_INCLUDE_DIRS}
@@ -50,9 +55,11 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         ${AS2JS_LIBRARIES}
+        ${COMMUNICATORD_LIBRARIES}
         ${CPPPROCESS_LIBRARIES}
         ${EDHTTP_LIBRARIES}
         ${EVENTDISPATCHER_LIBRARIES}
+        ${FLUIDSETTINGS_LIBRARIES}
         ${LIBEXCEPT_LIBRARIES}
         ${LIBMIMEMAIL_LIBRARIES}
         ${SERVERPLUGINS_LIBRARIES}

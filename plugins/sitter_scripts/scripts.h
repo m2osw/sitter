@@ -54,8 +54,8 @@ private:
 
     as2js::JSON::JSONValueRef
                             f_scripts = as2js::JSON::JSONValueRef(
-                                          as2js::JSON::JSONValue::pointer_t()
-                                        , as2js::String());
+                                          std::make_shared<as2js::JSON::JSONValue>(as2js::Position(), as2js::JSON::JSONValue::object_t())
+                                        , as2js::String("undefined"));
 
     std::string             f_script_starter = std::string();
     std::string             f_log_path = std::string();

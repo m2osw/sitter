@@ -100,17 +100,19 @@ void sitter_worker::tick()
     cppthread::guard lock(f_mutex);
 
     ++f_ticks;
+
+    f_mutex.signal();
 }
 
 
 void sitter_worker::load_plugins()
 {
     serverplugins::paths paths;
-    std::string const plugin_paths(f_server->get_server_parameter("plugins-path"));
-    paths.add(plugin_paths);
+    std::string const plugins_path(f_server->get_server_parameter("plugins-path"));
+    paths.add(plugins_path);
 
     serverplugins::names names(paths);
-    std::string const plugins(snapdev::trim_string(f_server->get_server_parameter("plugins")));
+    std::string plugins(snapdev::trim_string(f_server->get_server_parameter("plugins")));
     if(plugins.empty() || plugins == "*")
     {
         names.find_plugins("sitter_");
@@ -119,11 +121,35 @@ void sitter_worker::load_plugins()
     {
         // user specified list
         //
+        advgetopt::string_list_t plugin_names;
+        advgetopt::split_string(plugins, plugin_names, {","});
+        plugins.clear();
+        for(auto & p : plugin_names)
+        {
+            if(p.substr(0, 7) != "sitter_")
+            {
+                p = "sitter_" + p;
+            }
+            if(!plugins.empty())
+            {
+                plugins += ',';
+            }
+            plugins += p;
+        }
         names.add(plugins);
     }
 
     f_plugins = std::make_shared<serverplugins::collection>(names);
+    try
+    {
     f_plugins->load_plugins(f_server);
+    }
+    catch(libexcept::exception_t const & e)
+    {
+        SNAP_LOG_FATAL
+            << e
+            << SNAP_LOG_SEND;
+    }
 }
 
 
@@ -131,8 +157,8 @@ void sitter_worker::loop()
 {
     while(continue_running())
     {
-        run_plugins();
         wait_next_tick();
+        run_plugins();
     }
 }
 
@@ -172,6 +198,7 @@ void sitter_worker::run_plugins()
     // TODO: find a way to only affect this thread?!
     //
     {
+        // TODO: let user define that minimum level
         snaplogger::override_lowest_severity_level save_log_level(snaplogger::severity_t::SEVERITY_WARNING);
         f_server->process_watch(root);
     }

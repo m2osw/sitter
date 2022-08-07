@@ -50,4 +50,13 @@ install(
         "*.h"
 )
 
+# definitions for fluid-settings
+install(
+    FILES
+        sitter-processes.ini
+
+    DESTINATION
+        ${FLUIDSETTINGS_DEFINITIONS_INSTALL_DIR}
+)
+
 # vim: ts=4 sw=4 et

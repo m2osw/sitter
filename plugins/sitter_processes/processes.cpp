@@ -845,7 +845,7 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
         << "processes::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    load_processes(plugins()->get_server<sitter::server>()->get_server_parameter(g_sitter_name_processes_processes_path));
+    load_processes(plugins()->get_server<sitter::server>()->get_server_parameter(g_name_processes_path));
 
     as2js::JSON::JSONValueRef e(json["processes"]);
 
