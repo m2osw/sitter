@@ -15,14 +15,14 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#pragma once
 
-
-// self
+//// self
+////
+//#include    "sitter/sitter.h"
 //
-#include    "sitter/interrupt.h"
-
+//#include    "sitter/exception.h"
 //#include    "sitter/names.h"
-#include    "sitter/sitter.h"
 //#include    "sitter/version.h"
 //
 //
@@ -48,15 +48,15 @@
 //// libaddr
 ////
 //#include    <libaddr/addr_parser.h>
+
+
+// eventdispatcher
 //
-//
-//// eventdispatcher
-////
 //#include    <eventdispatcher/communicator.h>
-//#include    <eventdispatcher/signal.h>
+#include    <eventdispatcher/thread_done_signal.h>
 //#include    <eventdispatcher/tcp_client_permanent_message_connection.h>
-//
-//
+
+
 //// snapdev
 ////
 //#include    <snapdev/file_contents.h>
@@ -72,31 +72,19 @@
 ////
 //#include    <algorithm>
 //#include    <fstream>
-
-
-// C
 //
+//
+//// C
+////
 //#include    <sys/wait.h>
-#include    <signal.h>
-
-
-// last include
-//
-#include    <snapdev/poison.h>
-
-
-
-
 
 /** \file
- * \brief This file represents the Sitter daemon.
+ * \brief This file represents the interrupt signal handler.
  *
- * The sitter.cpp and sitter.h files represents the sitter daemon.
- *
- * This is not exactly a service, although it somewhat (mostly) behaves
- * like one. The sitter is used as a daemon to make sure that various
- * resources on a server remain available as expected.
+ * The sitter captures the Ctrl-C event in order to cleanly disconnect
+ * and quit. This is the declaration of that interrupt class.
  */
+
 
 
 
@@ -105,41 +93,25 @@ namespace sitter
 
 
 
-/** \brief The interrupt initialization.
- *
- * The interrupt uses the signalfd() function to obtain a way to listen on
- * incoming Unix signals.
- *
- * Specifically, it listens on the SIGINT signal, which is the equivalent
- * to the Ctrl-C.
- *
- * \param[in] s  The server we are listening for.
- */
-interrupt::interrupt(server * s)
-    : signal(SIGINT)
-    , f_server(s)
+class server;
+
+class worker_done
+    : public ed::thread_done_signal
 {
-    unblock_signal_on_destruction();
-    set_name("interrupt");
-}
+public:
+    typedef std::shared_ptr<worker_done>     pointer_t;
 
+                        worker_done(server * s);
+                        worker_done(worker_done const & rhs) = delete;
+    virtual             ~worker_done() override;
+    worker_done &       operator = (worker_done const & rhs) = delete;
 
-interrupt::~interrupt()
-{
-}
+    // ed::connection implementation
+    virtual void        process_read() override;
 
-
-/** \brief Call the stop function of the snaplock object.
- *
- * When this function is called, the signal was received and thus we are
- * asked to quit as soon as possible.
- */
-void interrupt::process_signal()
-{
-    // we simulate the STOP, so pass 'false' (i.e. not quitting)
-    //
-    f_server->stop(false);
-}
+private:
+    server *            f_server = nullptr;
+};
 
 
 

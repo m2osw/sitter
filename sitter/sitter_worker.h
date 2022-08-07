@@ -17,6 +17,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+// sitter
+//
+#include    <sitter/worker_done.h>
+
+
 // cppthreadd
 //
 #include    <cppthread/runner.h>
@@ -46,7 +51,9 @@ public:
     typedef std::shared_ptr<sitter_worker>
                             pointer_t;
 
-                            sitter_worker(std::shared_ptr<server> s);
+                            sitter_worker(
+                                  std::shared_ptr<server> s
+                                , worker_done::pointer_t done);
                             sitter_worker(sitter_worker const &) = delete;
     virtual                 ~sitter_worker();
     sitter_worker &         operator = (sitter_worker const &) = delete;
@@ -56,6 +63,7 @@ public:
     virtual void            run();
 
     void                    tick();
+    void                    wakeup();
 
 private:
     void                    load_plugins();
@@ -65,6 +73,7 @@ private:
     void                    report_error(as2js::JSON & json, time_t start_date);
 
     std::shared_ptr<server> f_server = std::shared_ptr<server>();
+    worker_done::pointer_t  f_worker_done = worker_done::pointer_t();
     int                     f_ticks = 0;
     cppthread::mutex        f_mutex = cppthread::mutex();
     serverplugins::collection::pointer_t

@@ -76,9 +76,12 @@ namespace sitter
 
 
 
-sitter_worker::sitter_worker(server::pointer_t s)
+sitter_worker::sitter_worker(
+          server::pointer_t s
+        , worker_done::pointer_t done)
     : runner("sitter-worker")
     , f_server(s)
+    , f_worker_done(done)
 {
 }
 
@@ -90,8 +93,17 @@ sitter_worker::~sitter_worker()
 
 void sitter_worker::run()
 {
-    load_plugins();
-    loop();
+    try
+    {
+        load_plugins();
+        loop();
+        f_worker_done->thread_done();
+    }
+    catch(...)
+    {
+        f_worker_done->thread_done();
+        throw;
+    }
 }
 
 
@@ -101,6 +113,13 @@ void sitter_worker::tick()
 
     ++f_ticks;
 
+    f_mutex.signal();
+}
+
+
+void sitter_worker::wakeup()
+{
+    cppthread::guard lock(f_mutex);
     f_mutex.signal();
 }
 

@@ -184,6 +184,8 @@ private:
     std::string         f_cache_path = std::string();
     int                 f_ticks = 0;
 
+    worker_done::pointer_t
+                        f_worker_done = worker_done::pointer_t();
     sitter_worker::pointer_t
                         f_worker = sitter_worker::pointer_t();
     cppthread::thread::pointer_t

@@ -334,7 +334,9 @@ int server::run()
 
     // start runner thread
     //
-    f_worker = std::make_shared<sitter_worker>(shared_from_this());
+    f_worker_done = std::make_shared<worker_done>(this);
+    f_communicator->add_connection(f_worker_done);
+    f_worker = std::make_shared<sitter_worker>(shared_from_this(), f_worker_done);
     f_worker_thread = std::make_shared<cppthread::thread>("worker", f_worker);
     f_worker_thread->start();
 
@@ -1174,14 +1176,29 @@ void server::stop(bool quitting)
 
     f_stopping = true;
 
+    if(f_worker != nullptr
+    && f_worker_thread != nullptr
+    && f_worker_thread->is_running())
+    {
+        f_worker_thread->stop([&](cppthread::thread * t){
+                snapdev::NOT_USED(t);
+                f_worker->wakeup();
+            });
+    }
 
     if(f_messenger != nullptr)
     {
         f_messenger->unregister_communicator(quitting);
+
+        // we can remove our messenger immediately, the communicator lower
+        // layer is responsible for sending messages, etc.
+        //
+        f_communicator->remove_connection(f_messenger);
     }
 
     f_communicator->remove_connection(f_interrupt);
     f_communicator->remove_connection(f_tick_timer);
+    f_communicator->remove_connection(f_worker_done);
 }
 
 

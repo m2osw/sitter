@@ -19,13 +19,13 @@
 
 // self
 //
-#include    "sitter/interrupt.h"
+#include    "sitter/worker_done.h"
 
 //#include    "sitter/names.h"
 #include    "sitter/sitter.h"
 //#include    "sitter/version.h"
-//
-//
+
+
 //// libmimemail
 ////
 //#include    <libmimemail/email.h>
@@ -77,7 +77,7 @@
 // C
 //
 //#include    <sys/wait.h>
-#include    <signal.h>
+//#include    <signal.h>
 
 
 // last include
@@ -100,31 +100,28 @@
 
 
 
+
 namespace sitter
 {
 
 
 
-/** \brief The interrupt initialization.
+/** \brief The worker_done initialization.
  *
- * The interrupt uses the signalfd() function to obtain a way to listen on
- * incoming Unix signals.
- *
- * Specifically, it listens on the SIGINT signal, which is the equivalent
- * to the Ctrl-C.
+ * The worker_done uses the eventdispatcher worker_done_signal connection.
+ * That object allows us to receive a signal when a thread ends cleanly
+ * or dies.
  *
  * \param[in] s  The server we are listening for.
  */
-interrupt::interrupt(server * s)
-    : signal(SIGINT)
-    , f_server(s)
+worker_done::worker_done(server * s)
+    : f_server(s)
 {
-    unblock_signal_on_destruction();
-    set_name("interrupt");
+    set_name("worker_done");
 }
 
 
-interrupt::~interrupt()
+worker_done::~worker_done()
 {
 }
 
@@ -134,8 +131,12 @@ interrupt::~interrupt()
  * When this function is called, the signal was received and thus we are
  * asked to quit as soon as possible.
  */
-void interrupt::process_signal()
+void worker_done::process_read()
 {
+    // call the default function
+    //
+    thread_done_signal::process_read();
+
     // we simulate the STOP, so pass 'false' (i.e. not quitting)
     //
     f_server->stop(false);

@@ -36,6 +36,7 @@ add_library(${PROJECT_NAME} SHARED
     sys_stats.cpp
     tick_timer.cpp
     version.cpp
+    worker_done.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
