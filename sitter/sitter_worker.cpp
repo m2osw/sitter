@@ -91,19 +91,25 @@ sitter_worker::~sitter_worker()
 }
 
 
+void sitter_worker::enter()
+{
+    runner::enter();
+
+    load_plugins();
+}
+
+
 void sitter_worker::run()
 {
-    try
-    {
-        load_plugins();
-        loop();
-        f_worker_done->thread_done();
-    }
-    catch(...)
-    {
-        f_worker_done->thread_done();
-        throw;
-    }
+    loop();
+}
+
+
+void sitter_worker::leave(cppthread::leave_status_t status)
+{
+    runner::leave(status);
+
+    f_worker_done->thread_done();
 }
 
 
@@ -159,16 +165,7 @@ void sitter_worker::load_plugins()
     }
 
     f_plugins = std::make_shared<serverplugins::collection>(names);
-    try
-    {
     f_plugins->load_plugins(f_server);
-    }
-    catch(libexcept::exception_t const & e)
-    {
-        SNAP_LOG_FATAL
-            << e
-            << SNAP_LOG_SEND;
-    }
 }
 
 

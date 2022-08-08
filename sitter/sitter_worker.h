@@ -60,7 +60,9 @@ public:
 
     // cppthread::runner implementation
     //
-    virtual void            run();
+    virtual void            enter() override;
+    virtual void            run() override;
+    virtual void            leave(cppthread::leave_status_t status) override;
 
     void                    tick();
     void                    wakeup();
