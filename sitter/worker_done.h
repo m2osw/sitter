@@ -17,72 +17,19 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-//// self
-////
-//#include    "sitter/sitter.h"
-//
-//#include    "sitter/exception.h"
-//#include    "sitter/names.h"
-//#include    "sitter/version.h"
-//
-//
-//// libmimemail
-////
-//#include    <libmimemail/email.h>
-//
-//
-//// snaplogger
-////
-//#include    <snaplogger/logger.h>
-//#include    <snaplogger/message.h>
-//#include    <snaplogger/options.h>
-//
-//
-//// advgetopt
-////
-//#include    <advgetopt/conf_file.h>
-//#include    <advgetopt/exception.h>
-//#include    <advgetopt/validator_integer.h>
-//
-//
-//// libaddr
-////
-//#include    <libaddr/addr_parser.h>
-
 
 // eventdispatcher
 //
-//#include    <eventdispatcher/communicator.h>
 #include    <eventdispatcher/thread_done_signal.h>
-//#include    <eventdispatcher/tcp_client_permanent_message_connection.h>
 
 
-//// snapdev
-////
-//#include    <snapdev/file_contents.h>
-//#include    <snapdev/gethostname.h>
-//#include    <snapdev/glob_to_list.h>
-//#include    <snapdev/mkdir_p.h>
-//#include    <snapdev/not_reached.h>
-//#include    <snapdev/not_used.h>
-//#include    <snapdev/string_replace_many.h>
-//
-//
-//// C++
-////
-//#include    <algorithm>
-//#include    <fstream>
-//
-//
-//// C
-////
-//#include    <sys/wait.h>
 
 /** \file
- * \brief This file represents the interrupt signal handler.
+ * \brief This declares an object that captures a signal from the worker.
  *
- * The sitter captures the Ctrl-C event in order to cleanly disconnect
- * and quit. This is the declaration of that interrupt class.
+ * This object is used to know when the worker dies. If the worker dies
+ * inadvertendly, then we want the whole service to exit. This signal
+ * helps us in that part.
  */
 
 

@@ -908,8 +908,6 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
                     //       item of array of processes is the process where
                     //       we need to stick this error)
                     //
-                    //e["error"] = "running";
-
                     plugins()->get_server<sitter::server>()->append_error(
                               e
                             , "processes"
@@ -942,7 +940,6 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
             // this process is expected to be running so having
             // found it in this loop, it is an error (missing)
             //
-            proc["error"] = "missing";
 
             // TBD: what should the priority be on this one?
             //      it's likely super important so more than 50

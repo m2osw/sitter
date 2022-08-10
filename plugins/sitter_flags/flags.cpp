@@ -106,7 +106,9 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
     std::string names;
     for(auto f : list)
     {
-        as2js::JSON::JSONValueRef e(flg[-1]);
+        // TODO: look into fixing array vs object selection
+        //
+        as2js::JSON::JSONValueRef e(flg["flag"][-1]);
 
         std::string const name(f->get_name());
         int const priority(f->get_priority());
@@ -126,10 +128,10 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
         communicatord::flag::tag_list_t const & tag_list(f->get_tags());
         if(!tag_list.empty())
         {
-            as2js::JSON::JSONValueRef tags(flg["tags"]);
             for(auto const & t : tag_list)
             {
-                tags[-1] = t;
+                as2js::JSON::JSONValueRef tag(e["tags"][-1]);
+                tag = t;
             }
         }
 
@@ -148,6 +150,7 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
             , std::to_string(list.size())
                 + " flag"
                 + (list.size() == 1 ? "" : "s")
+                + ' '
                 + (list.size() == 1 ? "is" : "are")
                 + " raised -- "
                 + names

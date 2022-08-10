@@ -113,7 +113,7 @@ void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
     // automatically initialized when loading the procps library
     int const cpu_count(std::max(1U, std::thread::hardware_concurrency()));
     e["count"] = cpu_count;
-    e["freq"] = sysconf(_SC_CLK_TCK); // in procps, this is named Hertz
+    e["freq"] = sysconf(_SC_CLK_TCK);
 
     // total uptime and total idle time since boot
     e["uptime"] = info.get_uptime();
@@ -144,6 +144,7 @@ void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
                 max_avg1 *= 0.8; // with 3+, go up to 80%
             }
         }
+
         if(info.get_load_avg1m() >= max_avg1)
         {
             // using too much of the CPUs is considered a warning, however,
@@ -172,7 +173,6 @@ void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
                     {
                         // processors are overloaded on this machine
                         //
-                        e["error"] = "High CPU usage";
                         plugins()->get_server<sitter::server>()->append_error(
                               json
                             , "cpu"

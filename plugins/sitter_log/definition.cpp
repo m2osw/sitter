@@ -51,11 +51,6 @@
 #include    <serverplugins/collection.h>
 
 
-// C++
-//
-//#include    <functional>
-
-
 // C
 //
 #include    <grp.h>

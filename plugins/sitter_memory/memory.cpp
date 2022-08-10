@@ -124,7 +124,6 @@ void memory::on_process_watch(as2js::JSON::JSONValueRef & json)
             }());
     if(high_memory_usage)
     {
-        e["error"] = "High memory usage";
         plugins()->get_server<sitter::server>()->append_error(
               e
             , "memory"
@@ -142,7 +141,6 @@ void memory::on_process_watch(as2js::JSON::JSONValueRef & json)
             }());
     if(high_swap_usage)
     {
-        e["error"] = "High swap usage";
         plugins()->get_server<sitter::server>()->append_error(
               e
             , "memory"

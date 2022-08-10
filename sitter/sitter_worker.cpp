@@ -126,6 +126,11 @@ void sitter_worker::tick()
 void sitter_worker::wakeup()
 {
     cppthread::guard lock(f_mutex);
+
+    // make sure f_ticks is not 0
+    //
+    f_ticks = 1;
+
     f_mutex.signal();
 }
 
@@ -174,6 +179,10 @@ void sitter_worker::loop()
     while(continue_running())
     {
         wait_next_tick();
+        if(!continue_running())
+        {
+            return;
+        }
         run_plugins();
     }
 }
@@ -183,7 +192,7 @@ void sitter_worker::wait_next_tick()
 {
     cppthread::guard lock(f_mutex);
 
-    for(;;)
+    while(continue_running())
     {
         if(f_ticks != 0)
         {
@@ -195,7 +204,6 @@ void sitter_worker::wait_next_tick()
         f_mutex.wait();
     }
 }
-
 
 void sitter_worker::run_plugins()
 {
@@ -215,6 +223,7 @@ void sitter_worker::run_plugins()
     //
     {
         // TODO: let user define that minimum level
+        //
         snaplogger::override_lowest_severity_level save_log_level(snaplogger::severity_t::SEVERITY_WARNING);
         f_server->process_watch(root);
     }

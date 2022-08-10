@@ -146,20 +146,26 @@ bool network::verify_communicatord_connection(as2js::JSON::JSONValueRef & json)
         service["name"] = "communicatord";
         service["error"] = "not connected";
 
-        time_t const connected(server->get_communicatord_connected_on());
-        time_t const disconnected(server->get_communicatord_disconnected_on());
-        time_t const now(time(nullptr));
+        snapdev::timespec_ex const connected(server->get_communicatord_connected_on());
+        snapdev::timespec_ex const disconnected(server->get_communicatord_disconnected_on());
+        snapdev::timespec_ex const now(snapdev::timespec_ex::gettime());
+
+        snapdev::timespec_ex const ONE_MINUTE(60, 0);
+        snapdev::timespec_ex const FIVE_MINUTES(5 * 60, 0);
+        snapdev::timespec_ex const FIFTEEN_MINUTES(15 * 60, 0);
+
+
 
         // amount of time since the last connection
         //
-        time_t duration(now - disconnected);
-        if(connected == 0)
+        snapdev::timespec_ex duration(now - connected);
+        if(!connected)
         {
             // on startup, the process was never connected give the system
             // 5 min. to get started
             //
             duration = now - disconnected;
-            if(duration < 5 * 60)
+            if(duration < FIVE_MINUTES)
             {
                 // don't report the error in this case
                 //
@@ -169,22 +175,22 @@ bool network::verify_communicatord_connection(as2js::JSON::JSONValueRef & json)
             // to determine the priority from duration we remove the
             // first 5 min.
             //
-            duration -= 5 * 60;
+            duration -= FIVE_MINUTES;
         }
 
         // depending on how long the connection has been missing, the
         // priority increases
         //
         int priority(15);
-        if(duration > 15 * 60LL * 1000000LL) // 15 min.
+        if(duration > FIFTEEN_MINUTES)
         {
             priority = 100;
         }
-        else if(duration > 5 * 60LL * 1000000LL) // 5 min.
+        else if(duration > FIVE_MINUTES)
         {
             priority = 65;
         }
-        else if(duration > 60LL * 1000000LL) // 1 min.
+        else if(duration > ONE_MINUTE)
         {
             priority = 30;
         }
@@ -194,7 +200,7 @@ bool network::verify_communicatord_connection(as2js::JSON::JSONValueRef & json)
                   json
                 , "network"
                 , "found the \"communicatord\" process but somehow sitter is not connected, has not been for "
-                    + std::to_string(duration)
+                    + duration.to_string()
                     + " seconds."
                 , priority);
 

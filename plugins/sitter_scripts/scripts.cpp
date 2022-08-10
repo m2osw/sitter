@@ -262,8 +262,8 @@ void scripts::process_script(int index, std::string script_filename)
     ss << '\n' << index << "> " << script_filename << '\n';
     std::string intro(ss.str());
 
-    // if we received some output or on a failing script,
-    // then email the administrator
+    // if we received output or on a failing script,
+    // email the administrator
     //
     std::string output(output_pipe->get_output());
     if(exit_code != 0
@@ -295,7 +295,6 @@ void scripts::process_script(int index, std::string script_filename)
         {
             error += '\n';
         }
-        e["error"] = error;
 
         snapdev::file_contents error_file(f_scripts_error_log);
         error_file.contents(error);

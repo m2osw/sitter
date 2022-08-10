@@ -101,8 +101,10 @@ public:
     void                set_communicatord_connected(bool status);
     void                set_communicatord_disconnected(bool status);
     bool                get_communicatord_is_connected() const;
-    time_t              get_communicatord_connected_on() const;
-    time_t              get_communicatord_disconnected_on() const;
+    snapdev::timespec_ex
+                        get_communicatord_connected_on() const;
+    snapdev::timespec_ex
+                        get_communicatord_disconnected_on() const;
     std::string         get_cache_path(std::string const & filename);
     std::string         get_server_parameter(std::string const & name) const;
 
@@ -179,8 +181,10 @@ private:
     int                 f_max_error_priority = 0;
     bool                f_stopping = false;
     bool                f_force_restart = false;
-    time_t              f_communicatord_connected = 0;
-    time_t              f_communicatord_disconnected = 0;
+    snapdev::timespec_ex
+                        f_communicatord_connected = 0.0;
+    snapdev::timespec_ex
+                        f_communicatord_disconnected = 0.0;
     std::string         f_cache_path = std::string();
     int                 f_ticks = 0;
 

@@ -17,11 +17,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// catch2 lib
+// catch2
 //
 #include    <catch2/snapcatch2.hpp>
 
-// C++ lib
+
+// C++
 //
 #include    <string>
 #include    <cstring>

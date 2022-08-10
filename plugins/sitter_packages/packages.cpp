@@ -666,8 +666,6 @@ SNAP_LOG_TRACE
             {
                 // package is required, so it is in error if not installed
                 //
-                package["error"] = "missing";
-
                 plugins()->get_server<sitter::server>()->append_error(
                           package
                         , "packages"
@@ -688,8 +686,6 @@ SNAP_LOG_TRACE
             {
                 // package is unwanted, so it should not be installed
                 //
-                package["error"] = "unwanted package is installed";
-
                 plugins()->get_server<sitter::server>()->append_error(
                           package
                         , "packages"
@@ -718,8 +714,6 @@ SNAP_LOG_TRACE
             //
             auto const & conflicts(pc.get_packages_in_conflict());
             std::string const conflicts_list(snapdev::join_strings(conflicts, "\", \""));
-
-            package["error"] = "package with conflicts";
 
             std::stringstream ss;
 

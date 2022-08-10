@@ -26,11 +26,6 @@
 #include    "sitter/version.h"
 
 
-//// libmimemail
-////
-//#include    <libmimemail/email.h>
-
-
 // snaplogger
 //
 #include    <snaplogger/logger.h>
@@ -186,7 +181,7 @@ server::server(int argc, char * argv[])
     , f_opts(g_options_environment)
     , f_communicator(ed::communicator::instance())
     , f_messenger(std::make_shared<messenger>(this, f_opts))
-    , f_communicatord_disconnected(time(nullptr))
+    , f_communicatord_disconnected(snapdev::timespec_ex::gettime())
 {
     snaplogger::add_logger_options(f_opts);
     add_plugin_options();
@@ -1184,6 +1179,8 @@ void server::stop(bool quitting)
                 snapdev::NOT_USED(t);
                 f_worker->wakeup();
             });
+        f_worker_thread.reset();
+        f_worker.reset();
     }
 
     if(f_messenger != nullptr)
@@ -1207,11 +1204,11 @@ void server::set_communicatord_connected(bool status)
 {
     if(status)
     {
-        f_communicatord_connected = time(nullptr);
+        f_communicatord_connected = snapdev::timespec_ex::gettime();
     }
     else
     {
-        f_communicatord_disconnected = time(nullptr);
+        f_communicatord_disconnected = snapdev::timespec_ex::gettime();
     }
 }
 
@@ -1224,14 +1221,14 @@ bool server::get_communicatord_is_connected() const
 
 
 
-time_t server::get_communicatord_connected_on() const
+snapdev::timespec_ex server::get_communicatord_connected_on() const
 {
     return f_communicatord_connected;
 }
 
 
 
-time_t server::get_communicatord_disconnected_on() const
+snapdev::timespec_ex server::get_communicatord_disconnected_on() const
 {
     return f_communicatord_disconnected;
 }
@@ -1382,7 +1379,7 @@ void server::clear_errors()
  * or not. By default it is 50 and the configuration file says to send
  * emails if the priority is 1 or more. We expect numbers between 0 and 100.
  *
- * \param[in] doc  The DOM document where the \<error> tag is created.
+ * \param[in] json_ref  The JSON document where the \<error> tag is created.
  * \param[in] plugin_name  The name of the plugin generating this error.
  * \param[in] message  The error message. This is free form. It can't include
  *            tags (\< and \> will be inserted as \&lt; and \&gt;.)
@@ -1425,14 +1422,10 @@ void server::append_error(
                 + " is not valid.");
     }
 
-    // get the error array
-    //
-    as2js::JSON::JSONValueRef error(json_ref["error"]);
-
     // create a new item in the array (at the end)
     //
-    as2js::JSON::JSONValueRef err(json_ref[-1]);
-    err[as2js::String("plugin_name")] = plugin_name;
+    as2js::JSON::JSONValueRef err(json_ref["error"][-1]);
+    err["plugin_name"] = plugin_name;
     err["message"] = message;
     err["priority"] = priority;
 }

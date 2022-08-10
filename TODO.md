@@ -12,6 +12,9 @@ A few things that still need to be done in this project:
           is to use the ioctl() function with the netdevice structure
           (see "man 7 netdevide")
 
+* Check the number of ticks between run. If not exactly 1, then our loop is
+  too slow and the administrator should be told.
+
 * Plugin for Snap! Websites to look at the data.
 
 * Check each domain name SOA; this test is to verify that the BIND service

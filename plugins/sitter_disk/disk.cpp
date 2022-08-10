@@ -276,11 +276,6 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
                 double const usage(1.0 - static_cast<double>(s.f_bavail) / static_cast<double>(s.f_blocks));
                 if(usage >= 0.9)
                 {
-                    // we mark the partition as quite full even if the user
-                    // marks it as "ignore that one"
-                    //
-                    p["error"] = "partition used over 90%";
-
                     // if we find it in the list of partitions to
                     // ignore then we skip the full error generation
                     //
@@ -292,7 +287,16 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
                                 std::regex const pat(pattern);
                                 return std::regex_match(dir, pat, std::regex_constants::match_any);
                             }));
-                    if(it1 == g_ignore_filled_partitions.end())
+                    bool const ignore(it1 != g_ignore_filled_partitions.end());
+
+                    // we mark the partition as quite full even if the user
+                    // marks it as "ignore that one"
+                    //
+                    p["error"] = ignore
+                                    ? "partition used over 90% (ignore)"
+                                    : "partition used over 90%";
+
+                    if(!ignore)
                     {
                         // the user can also define a list of regex which
                         // we test now to ignore further partitions

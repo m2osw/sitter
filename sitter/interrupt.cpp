@@ -21,62 +21,11 @@
 //
 #include    "sitter/interrupt.h"
 
-//#include    "sitter/names.h"
 #include    "sitter/sitter.h"
-//#include    "sitter/version.h"
-//
-//
-//// libmimemail
-////
-//#include    <libmimemail/email.h>
-//
-//
-//// snaplogger
-////
-//#include    <snaplogger/logger.h>
-//#include    <snaplogger/message.h>
-//#include    <snaplogger/options.h>
-//
-//
-//// advgetopt
-////
-//#include    <advgetopt/conf_file.h>
-//#include    <advgetopt/exception.h>
-//#include    <advgetopt/validator_integer.h>
-//
-//
-//// libaddr
-////
-//#include    <libaddr/addr_parser.h>
-//
-//
-//// eventdispatcher
-////
-//#include    <eventdispatcher/communicator.h>
-//#include    <eventdispatcher/signal.h>
-//#include    <eventdispatcher/tcp_client_permanent_message_connection.h>
-//
-//
-//// snapdev
-////
-//#include    <snapdev/file_contents.h>
-//#include    <snapdev/gethostname.h>
-//#include    <snapdev/glob_to_list.h>
-//#include    <snapdev/mkdir_p.h>
-//#include    <snapdev/not_reached.h>
-//#include    <snapdev/not_used.h>
-//#include    <snapdev/string_replace_many.h>
-//
-//
-//// C++
-////
-//#include    <algorithm>
-//#include    <fstream>
 
 
 // C
 //
-//#include    <sys/wait.h>
 #include    <signal.h>
 
 

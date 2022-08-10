@@ -33,22 +33,6 @@
 // snapdev
 //
 #include    <snapdev/file_contents.h>
-//#include    <snapdev/gethostname.h>
-//#include    <snapdev/mkdir_p.h>
-//#include    <snapdev/not_reached.h>
-//#include    <snapdev/not_used.h>
-//#include    <snapdev/string_replace_many.h>
-
-
-// C++
-//
-//#include    <algorithm>
-//#include    <fstream>
-
-
-// C
-//
-//#include    <sys/wait.h>
 
 
 // last include
@@ -255,7 +239,7 @@ void sys_stats::load_loadavg()
         return;
     }
 
-    snapdev::file_contents in("/proc/uptime");
+    snapdev::file_contents in("/proc/loadavg");
     if(in.read_all())
     {
         std::string const uptime_idle(in.contents());

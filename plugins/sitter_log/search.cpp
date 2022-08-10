@@ -22,36 +22,6 @@
 #include    "search.h"
 
 
-//// advgetopt
-////
-//#include    <advgetopt/conf_file.h>
-//#include    <advgetopt/validator_size.h>
-//
-//
-//// snaplogger
-////
-//#include    <snaplogger/message.h>
-//
-//
-//// snapdev
-////
-//#include    <snapdev/enumerate.h>
-//#include    <snapdev/glob_to_list.h>
-//#include    <snapdev/not_used.h>
-//#include    <snapdev/trim_string.h>
-//
-//
-//// C++
-////
-////#include    <functional>
-//
-//
-//// C
-////
-//#include    <grp.h>
-//#include    <pwd.h>
-
-
 // last include
 //
 #include    <snapdev/poison.h>

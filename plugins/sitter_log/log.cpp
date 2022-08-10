@@ -126,8 +126,6 @@ void log::on_process_watch(as2js::JSON::JSONValueRef & json)
                       "no logs found for "
                     + def.get_name()
                     + " which says it is mandatory to have at least one log file");
-            e["error"] = err_msg;
-
             plugins()->get_server<sitter::server>()->append_error(
                   e
                 , "log"
@@ -176,8 +174,6 @@ void log::check_log(
                     + std::to_string(st.st_size)
                     + ", which is more than the maximum size of "
                     + std::to_string(def.get_max_size()));
-            l["error"] = err_msg;
-
             plugins()->get_server<sitter::server>()->append_error(
                   l
                 , "log"
@@ -200,8 +196,6 @@ void log::check_log(
                     + std::to_string(st.st_uid)
                     + " expected "
                     + std::to_string(uid));
-            l["error"] = err_msg;
-
             plugins()->get_server<sitter::server>()->append_error(
                   l
                 , "log"
@@ -224,8 +218,6 @@ void log::check_log(
                     + std::to_string(st.st_gid)
                     + " expected "
                     + std::to_string(gid));
-            l["error"] = err_msg;
-
             plugins()->get_server<sitter::server>()->append_error(
                   l
                 , "log"
@@ -249,8 +241,6 @@ void log::check_log(
                     + std::to_string(st.st_mode)    // TODO: get octal
                     + " expected "
                     + std::to_string(mode));        // TODO: get octal
-            l["error"] = err_msg;
-
             plugins()->get_server<sitter::server>()->append_error(
                   l
                 , "log"

@@ -129,7 +129,6 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
             std::string const err_msg(
                     "we are unable to check whether some updates are"
                     " available (the `apt-check` command was not found)");
-            e["error"] = err_msg;
             plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, 98);
             return;
         }
@@ -189,7 +188,6 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                     priority = 45;
                     err_msg = "there are standard packages that can be upgraded now on this system.";
                 }
-                e["error"] = err_msg;
                 plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, priority);
                 return;
             }
@@ -199,7 +197,6 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                           "\""
                         + apt_check_output
                         + "\" file is out of date, the snapmanagerdaemon did not update it for more than a day");
-                e["error"] = err_msg;
                 plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, 50);
                 return;
             }
@@ -213,7 +210,6 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                       "could not figure out the contents of \""
                     + apt_check_output
                     + "\", snapmanagerdaemon may have changed the format since we wrote the sitter apt plugin?");
-            e["error"] = err_msg;
             plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, 15);
             return;
         }
@@ -229,7 +225,6 @@ void apt::on_process_watch(as2js::JSON::JSONValueRef & json)
                   "\""
                 + apt_check_output
                 + "\" file is missing, sitter is not getting APT status updates from snapmanagerdaemon");
-        e["error"] = err_msg;
         plugins()->get_server<sitter::server>()->append_error(e, "apt", err_msg, 20);
         return;
     }

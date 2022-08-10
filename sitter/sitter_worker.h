@@ -17,7 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// sitter
+// self
 //
 #include    <sitter/worker_done.h>
 

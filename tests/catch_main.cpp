@@ -39,9 +39,14 @@
 #include    <snaplogger/logger.h>
 
 
-// C++ lib
+// C++
 //
 #include    <sstream>
+
+
+// last include
+//
+#include    <snapdev/poison.h>
 
 
 

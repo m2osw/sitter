@@ -23,17 +23,17 @@
 #include    "sitter/meminfo.h"
 
 
-// snaplogger lib
+// snaplogger
 //
 #include    <snaplogger/message.h>
 
 
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/tokenize_string.h>
 
 
-// C++ lib
+// C++
 //
 #include    <algorithm>
 #include    <fstream>
