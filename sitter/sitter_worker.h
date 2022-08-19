@@ -72,7 +72,7 @@ private:
     void                    loop();
     void                    wait_next_tick();
     void                    run_plugins();
-    void                    report_error(as2js::JSON & json, time_t start_date);
+    void                    report_error(as2js::json & json, time_t start_date);
 
     std::shared_ptr<server> f_server = std::shared_ptr<server>();
     worker_done::pointer_t  f_worker_done = worker_done::pointer_t();

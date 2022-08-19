@@ -630,7 +630,7 @@ void packages::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void packages::on_process_watch(as2js::JSON::JSONValueRef & json)
+void packages::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "packages::on_process_watch(): processing"
@@ -638,7 +638,7 @@ void packages::on_process_watch(as2js::JSON::JSONValueRef & json)
 
     load_packages();
 
-    as2js::JSON::JSONValueRef e(json["packages"]);
+    as2js::json::json_value_ref e(json["packages"]);
 
 SNAP_LOG_TRACE
 << "got "
@@ -647,7 +647,7 @@ SNAP_LOG_TRACE
 << SNAP_LOG_SEND;
     for(auto pc : g_packages)
     {
-        as2js::JSON::JSONValueRef package(e["package"][-1]);
+        as2js::json::json_value_ref package(e["package"][-1]);
 
         std::string const name(pc.get_name());
         package["name"] = name;

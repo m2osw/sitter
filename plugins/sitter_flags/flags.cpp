@@ -83,7 +83,7 @@ void flags::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
+void flags::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "flags::on_process_watch(): processing"
@@ -98,7 +98,7 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
         return;
     }
 
-    as2js::JSON::JSONValueRef flg(json["flags"]);
+    as2js::json::json_value_ref flg(json["flags"]);
 
     // add each flag to the DOM
     //
@@ -108,7 +108,7 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
     {
         // TODO: look into fixing array vs object selection
         //
-        as2js::JSON::JSONValueRef e(flg["flag"][-1]);
+        as2js::json::json_value_ref e(flg["flag"][-1]);
 
         std::string const name(f->get_name());
         int const priority(f->get_priority());
@@ -130,7 +130,7 @@ void flags::on_process_watch(as2js::JSON::JSONValueRef & json)
         {
             for(auto const & t : tag_list)
             {
-                as2js::JSON::JSONValueRef tag(e["tags"][-1]);
+                as2js::json::json_value_ref tag(e["tags"][-1]);
                 tag = t;
             }
         }

@@ -91,7 +91,7 @@ void log::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void log::on_process_watch(as2js::JSON::JSONValueRef & json)
+void log::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "log::on_process_watch(): processing"
@@ -99,7 +99,7 @@ void log::on_process_watch(as2js::JSON::JSONValueRef & json)
 
     definition::vector_t log_defs(load());
 
-    as2js::JSON::JSONValueRef e(json["logs"]);
+    as2js::json::json_value_ref e(json["logs"]);
 
     // check each log
     //
@@ -140,7 +140,7 @@ void log::check_log(
       int index
     , std::string filename
     , definition const & def
-    , as2js::JSON::JSONValueRef & json)
+    , as2js::json::json_value_ref & json)
 {
     snapdev::NOT_USED(index);
 
@@ -151,7 +151,7 @@ void log::check_log(
         //
         f_found = true;
 
-        as2js::JSON::JSONValueRef l(json["log"]);
+        as2js::json::json_value_ref l(json["log"]);
 
         l["name"] = def.get_name();
         l["filename"] = filename;

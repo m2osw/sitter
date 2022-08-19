@@ -83,13 +83,13 @@ void memory::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void memory::on_process_watch(as2js::JSON::JSONValueRef & json)
+void memory::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "memory::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    as2js::JSON::JSONValueRef e(json["memory"]);
+    as2js::json::json_value_ref e(json["memory"]);
 
     // read "/proc/meminfo"
     //

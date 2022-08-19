@@ -45,11 +45,11 @@ public:
     virtual void        bootstrap() override;
 
     // server signals
-    void                on_process_watch(as2js::JSON::JSONValueRef & json);
+    void                on_process_watch(as2js::json::json_value_ref & json);
 
 private:
-    bool                find_communicatord(as2js::JSON::JSONValueRef & json);
-    bool                verify_communicatord_connection(as2js::JSON::JSONValueRef & json);
+    bool                find_communicatord(as2js::json::json_value_ref & json);
+    bool                verify_communicatord_connection(as2js::json::json_value_ref & json);
 
     std::string         f_network_data_path = std::string();
 };

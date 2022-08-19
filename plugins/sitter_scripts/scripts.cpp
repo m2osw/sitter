@@ -165,7 +165,7 @@ void scripts::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void scripts::on_process_watch(as2js::JSON::JSONValueRef & json)
+void scripts::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "scripts::on_process_watch(): processing"
@@ -237,7 +237,7 @@ void scripts::process_script(int index, std::string script_filename)
         exit_code = p.wait();
     }
 
-    as2js::JSON::JSONValueRef e(f_scripts["script"]);
+    as2js::json::json_value_ref e(f_scripts["script"]);
 
     e["name"] = script_filename;
     e["exit_code"] = exit_code;

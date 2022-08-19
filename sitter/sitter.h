@@ -108,7 +108,7 @@ public:
     std::string         get_cache_path(std::string const & filename);
     std::string         get_server_parameter(std::string const & name) const;
 
-    PLUGIN_SIGNAL_WITH_MODE(process_watch, (as2js::JSON::JSONValueRef & json), (json), NEITHER);
+    PLUGIN_SIGNAL_WITH_MODE(process_watch, (as2js::json::json_value_ref & json), (json), NEITHER);
 
     // connection_with_send_message overloads
     //
@@ -124,14 +124,14 @@ public:
     void                clear_cache(std::string const & name);
     bool                output_process(
                               std::string const & plugin_name
-                            , as2js::JSON::JSONValueRef & json
+                            , as2js::json::json_value_ref & json
                             , cppprocess::process_info::pointer_t info
                             , std::string const & process_name
                             , int priority);
 
     void                clear_errors();
     void                append_error(
-                              as2js::JSON::JSONValueRef & json_ref
+                              as2js::json::json_value_ref & json_ref
                             , std::string const & plugin_name
                             , std::string const & message
                             , int priority = 50);

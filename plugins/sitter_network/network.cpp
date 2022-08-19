@@ -86,13 +86,13 @@ void network::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void network::on_process_watch(as2js::JSON::JSONValueRef & json)
+void network::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "network::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    as2js::JSON::JSONValueRef results(json["network"]);
+    as2js::json::json_value_ref results(json["network"]);
     if(find_communicatord(results))
     {
         // communicatord is running, it should have been giving us
@@ -120,7 +120,7 @@ void network::on_process_watch(as2js::JSON::JSONValueRef & json)
 }
 
 
-bool network::find_communicatord(as2js::JSON::JSONValueRef & json)
+bool network::find_communicatord(as2js::json::json_value_ref & json)
 {
     cppprocess::process_list list;
     cppprocess::process_info::pointer_t info(list.find("communicatord"));
@@ -135,14 +135,14 @@ bool network::find_communicatord(as2js::JSON::JSONValueRef & json)
 
 
 
-bool network::verify_communicatord_connection(as2js::JSON::JSONValueRef & json)
+bool network::verify_communicatord_connection(as2js::json::json_value_ref & json)
 {
     sitter::server::pointer_t server(plugins()->get_server<sitter::server>());
     if(!server->get_communicatord_is_connected())
     {
         // no communicatord process!?
         //
-        as2js::JSON::JSONValueRef service(json["service"]);
+        as2js::json::json_value_ref service(json["service"]);
         service["name"] = "communicatord";
         service["error"] = "not connected";
 

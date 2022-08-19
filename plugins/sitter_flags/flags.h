@@ -43,7 +43,7 @@ public:
     virtual void        bootstrap() override;
 
     // server signal
-    void                on_process_watch(as2js::JSON::JSONValueRef & json);
+    void                on_process_watch(as2js::json::json_value_ref & json);
 
 private:
 };

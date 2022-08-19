@@ -100,13 +100,13 @@ void cpu::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void cpu::on_process_watch(as2js::JSON::JSONValueRef & json)
+void cpu::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "cpu::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    as2js::JSON::JSONValueRef e(json["cpu"]);
+    as2js::json::json_value_ref e(json["cpu"]);
 
     sys_stats info;
 

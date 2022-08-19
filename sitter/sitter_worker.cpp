@@ -207,9 +207,9 @@ void sitter_worker::wait_next_tick()
 
 void sitter_worker::run_plugins()
 {
-    as2js::JSON json;
+    as2js::json json;
 
-    as2js::JSON::JSONValueRef root(json["sitter"]);
+    as2js::json::json_value_ref root(json["sitter"]);
 
     time_t const start_date(time(nullptr));
     root["start_date"] = start_date;
@@ -231,7 +231,7 @@ void sitter_worker::run_plugins()
     time_t const end_date(time(nullptr));
     root["end_date"] = end_date;
 
-    as2js::JSON::JSONValue::object_t obj(root);
+    as2js::json::json_value::object_t obj(root);
     if(obj.size() <= 2)
     {
         static bool err_once(true);
@@ -253,7 +253,7 @@ void sitter_worker::run_plugins()
         int64_t const date(((start_date / 60LL) * 60LL) % f_server->get_statistics_period());
         std::string const filename(data_path + '/' + std::to_string(date) + ".json");
         snapdev::file_contents output(filename);
-        output.contents(json.get_value()->to_string().to_utf8());
+        output.contents(json.get_value()->to_string());
         output.write_all();
     }
 
@@ -269,7 +269,7 @@ void sitter_worker::run_plugins()
 }
 
 
-void sitter_worker::report_error(as2js::JSON & json, time_t start_date)
+void sitter_worker::report_error(as2js::json & json, time_t start_date)
 {
     // how often to send an email depends on the priority
     // and the span parameters
@@ -393,7 +393,7 @@ void sitter_worker::report_error(as2js::JSON & json, time_t start_date)
     // TODO: transform JSON to "neat" (useful) HTML
     //
     libmimemail::attachment html;
-    std::string const data(json.get_value()->to_string().to_utf8());
+    std::string const data(json.get_value()->to_string());
     html.quoted_printable_encode_and_set_data("<p>" + data + "</p>", "text/html");
     e.set_body_attachment(html);
 

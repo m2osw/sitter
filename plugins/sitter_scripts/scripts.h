@@ -45,17 +45,17 @@ public:
     virtual void            bootstrap() override;
 
     // server signals
-    void                    on_process_watch(as2js::JSON::JSONValueRef & json);
+    void                    on_process_watch(as2js::json::json_value_ref & json);
 
 private:
     void                    process_script(int index, std::string script_filename);
     static std::string      format_date(time_t const t);
     std::string             generate_header(std::string const & type);
 
-    as2js::JSON::JSONValueRef
-                            f_scripts = as2js::JSON::JSONValueRef(
-                                          std::make_shared<as2js::JSON::JSONValue>(as2js::Position(), as2js::JSON::JSONValue::object_t())
-                                        , as2js::String("undefined"));
+    as2js::json::json_value_ref
+                            f_scripts = as2js::json::json_value_ref(
+                                          std::make_shared<as2js::json::json_value>(as2js::position(), as2js::json::json_value::object_t())
+                                        , std::string("undefined"));
 
     std::string             f_script_starter = std::string();
     std::string             f_log_path = std::string();

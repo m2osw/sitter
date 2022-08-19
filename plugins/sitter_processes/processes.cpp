@@ -839,7 +839,7 @@ void processes::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
+void processes::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "processes::on_process_watch(): processing"
@@ -847,7 +847,7 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
 
     load_processes(plugins()->get_server<sitter::server>()->get_server_parameter(g_name_processes_path));
 
-    as2js::JSON::JSONValueRef e(json["processes"]);
+    as2js::json::json_value_ref e(json["processes"]);
 
     cppprocess::process_list list;
     for(auto it(list.begin()); it != list.end() && !g_processes.empty(); ++it)
@@ -904,7 +904,7 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
                 if(g_processes[j].is_backend()
                 && !g_processes[j].is_process_expected_to_run())
                 {
-                    // TODO: get the correct JSONValue to update (i.e. last
+                    // TODO: get the correct json::json_value_ref to update (i.e. last
                     //       item of array of processes is the process where
                     //       we need to stick this error)
                     //
@@ -932,7 +932,7 @@ void processes::on_process_watch(as2js::JSON::JSONValueRef & json)
     size_t const max_re(g_processes.size());
     for(size_t j(0); j < max_re; ++j)
     {
-        as2js::JSON::JSONValueRef proc(json["process"][-1]);
+        as2js::json::json_value_ref proc(json["process"][-1]);
         proc["name"] = g_processes[j].get_name();
 
         if(g_processes[j].is_process_expected_to_run())

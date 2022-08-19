@@ -84,13 +84,13 @@ void firewall::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void firewall::on_process_watch(as2js::JSON::JSONValueRef & json)
+void firewall::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "firewall::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    as2js::JSON::JSONValueRef e(json["firewall"]);
+    as2js::json::json_value_ref e(json["firewall"]);
 
     // first we check that the snapfirewall daemon is running
     //

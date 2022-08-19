@@ -1107,12 +1107,12 @@ void server::clear_cache(std::string const & name)
 
 bool server::output_process(
       std::string const & plugin_name
-    , as2js::JSON::JSONValueRef & json
+    , as2js::json::json_value_ref & json
     , cppprocess::process_info::pointer_t info
     , std::string const & process_name
     , int priority)
 {
-    as2js::JSON::JSONValueRef process(json["process"][-1]);
+    as2js::json::json_value_ref process(json["process"][-1]);
     process["name"] = process_name;
 
     if(info == nullptr)
@@ -1298,9 +1298,9 @@ void server::record_usage(ed::message const & message)
         return;
     }
 
-    as2js::JSON json;
+    as2js::json json;
 
-    as2js::JSON::JSONValueRef e(json["rusage"]);
+    as2js::json::json_value_ref e(json["rusage"]);
 
     std::string const process_name(message.get_parameter("process_name"));
     std::string const pid(message.get_parameter("pid"));
@@ -1322,7 +1322,7 @@ void server::record_usage(ed::message const & message)
     //
     e["date"] = start_date;
 
-    std::string const data(json.get_value()->to_string().to_utf8());
+    std::string const data(json.get_value()->to_string());
 
     // save data
     //
@@ -1388,7 +1388,7 @@ void server::clear_errors()
  *            administrator.
  */
 void server::append_error(
-      as2js::JSON::JSONValueRef & json_ref
+      as2js::json::json_value_ref & json_ref
     , std::string const & plugin_name
     , std::string const & message
     , int priority)
@@ -1424,7 +1424,7 @@ void server::append_error(
 
     // create a new item in the array (at the end)
     //
-    as2js::JSON::JSONValueRef err(json_ref["error"][-1]);
+    as2js::json::json_value_ref err(json_ref["error"][-1]);
     err["plugin_name"] = plugin_name;
     err["message"] = message;
     err["priority"] = priority;

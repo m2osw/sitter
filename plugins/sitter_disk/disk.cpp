@@ -227,13 +227,13 @@ void disk::bootstrap()
  *
  * \param[in] json  The document where the results are collected.
  */
-void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
+void disk::on_process_watch(as2js::json::json_value_ref & json)
 {
     SNAP_LOG_DEBUG
         << "disk::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
-    as2js::JSON::JSONValueRef e(json["disk"]);
+    as2js::json::json_value_ref e(json["disk"]);
 
     // read the various mounts on this server
     //
@@ -254,7 +254,7 @@ void disk::on_process_watch(as2js::JSON::JSONValueRef & json)
             //
             if(s.f_blocks != 0)
             {
-                as2js::JSON::JSONValueRef p(e["partition"][-1]);
+                as2js::json::json_value_ref p(e["partition"][-1]);
 
                 // directory where this partition is attached
                 //

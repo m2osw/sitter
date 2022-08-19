@@ -15,6 +15,18 @@ A few things that still need to be done in this project:
 * Check the number of ticks between run. If not exactly 1, then our loop is
   too slow and the administrator should be told.
 
+* Do a watchdog of all the services by sending the ALIVE message. Make it
+  so we don't swamp the network (i.e. have a separate worker thread which
+  sends one message every N seconds--use cppthread paced jobs).
+
+* Replace Tripwire with our own system. This is a plugin using a worker
+  thread to check a file's checksum, new files, files that disappeared,
+  etc. (very much like tripwire). It will also have to use keys or a
+  connection to another computer to get the data checked properly.
+
+  (see cppthread about having a job for a worker thread which will be worked
+  on only after a certain date & time--i.e. a paced job)
+
 * Plugin for Snap! Websites to look at the data.
 
 * Check each domain name SOA; this test is to verify that the BIND service
