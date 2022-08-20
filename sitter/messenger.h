@@ -58,8 +58,15 @@ public:
                                     , std::string const & value);
 
 private:
+    void                msg_block_ip(ed::message & message);
+    void                msg_database_ready(ed::message & message);
+    void                msg_firewall_ready(ed::message & message);
+    void                msg_no_database(ed::message & message);
+    void                msg_unblock_ip(ed::message & message);
+
     // this is owned by a server object so no need for a smart pointer
     server *                    f_server = nullptr;
+    ed::dispatcher::pointer_t   f_dispatcher = ed::dispatcher::pointer_t();
 };
 
 

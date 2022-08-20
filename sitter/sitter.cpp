@@ -148,7 +148,8 @@ advgetopt::options_environment const g_options_environment =
     .f_configuration_files = nullptr,
     .f_configuration_filename = "sitter.conf",
     .f_configuration_directories = nullptr,
-    .f_environment_flags = advgetopt::GETOPT_ENVIRONMENT_FLAG_PROCESS_SYSTEM_PARAMETERS,
+    .f_environment_flags = advgetopt::GETOPT_ENVIRONMENT_FLAG_SYSTEM_PARAMETERS
+                         | advgetopt::GETOPT_ENVIRONMENT_FLAG_PROCESS_SYSTEM_PARAMETERS,
     .f_help_header = "Usage: %p [-<opt>] <process-name>\n"
                      "where -<opt> is one or more of:",
     .f_help_footer = "Additional command line options loaded from: %i\n\n%c",

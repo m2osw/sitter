@@ -75,6 +75,7 @@ namespace sitter
 messenger::messenger(server * s, advgetopt::getopt & opts)
     : fluid_settings::fluid_settings_connection(opts, "sitter")
     , f_server(s)
+    , f_dispatcher(std::make_shared<ed::dispatcher>(this))
 {
     set_name("messenger");
 }
