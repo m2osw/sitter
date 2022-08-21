@@ -1,5 +1,5 @@
-# Create a user "<Name>" and corresponding group "<Name>"
-# and create a home directory (a.k.a. /var/lib/<Name>)
+# Create a user "<name>" and corresponding group "<name>"
+# and create a home directory (a.k.a. /var/lib/<name>)
 #
 # see: man dh_sysuser
 #
