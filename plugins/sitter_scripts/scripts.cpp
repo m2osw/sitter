@@ -362,7 +362,7 @@ std::string scripts::generate_header(std::string const & type)
             for(auto const & i : ips)
             {
                 header += sep;
-                header += i.get_address().to_ipv4or6_string(addr::string_ip_t::STRING_IP_BRACKETS);
+                header += i.get_address().to_ipv4or6_string(addr::STRING_IP_BRACKET_ADDRESS);
                 sep = ", ";
             }
             header += '\n';
