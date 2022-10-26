@@ -1,0 +1,17 @@
+#!/bin/sh -e
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+if [ "$1" = "purge" ]
+then
+    # delete all of the collected data on a purge
+    #
+    cd /etc
+    rm -rf .git
+fi
+
+
+#DEBHELPER#
+
+# vim: ts=4 sw=4 et nocindent

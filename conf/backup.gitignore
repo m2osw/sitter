@@ -1,0 +1,5 @@
+*.sw?
+cups/subscriptions.conf
+cups/subscriptions.conf.O
+letsencrypt/csr
+letsencrypt/keys

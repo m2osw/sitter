@@ -1,0 +1,9 @@
+#!/bin/sh -e
+#
+# Run a commit of the latest changes
+
+cd /etc
+git add .
+git commit --quiet --message="/etc auto-commit" .
+
+# vim: ts=4 sw=4 et

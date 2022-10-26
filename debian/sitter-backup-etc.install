@@ -1,0 +1,2 @@
+#!/usr/bin/dh-exec
+conf/backup.gitignore                        => etc/.gitignore

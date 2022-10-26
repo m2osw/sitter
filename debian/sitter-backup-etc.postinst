@@ -1,0 +1,19 @@
+#!/bin/sh -e
+
+#DEBHELPER#
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+if [ "$1" = "configure" ]
+then
+    cd /etc
+    if test ! -d .git
+    then
+        git init
+        git add .
+        git commit --quiet --message="/etc first commit" .
+    fi
+fi
+
+# vim: ts=4 sw=4 et nocindent

@@ -1,3 +1,18 @@
+sitter (0.3.1.0~bionic) bionic; urgency=high
+
+  * Use fluid-settings.
+  * Separated the .ini files, one per plugin.
+  * Fixed options.
+  * Ignore the seed.txt file.
+  * Various updates to compile with other contribs.
+  * Fixed a title.
+  * Removed Cassandra as a dependency.
+  * The processing now happens in a thread. If the thread die, auto-restart.
+  * Enhanced error generator and use JSON instead of XML.
+  * Added a backup-etc package to the project.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Tue, 25 Oct 2022 19:43:00 -0700
+
 sitter (0.3.0.0~bionic) bionic; urgency=high
 
   * Port of snapwatchdog as our sitter project.
