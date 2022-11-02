@@ -7,7 +7,7 @@ sitter (0.3.1.0~bionic) bionic; urgency=high
   * Various updates to compile with other contribs.
   * Fixed a title.
   * Removed Cassandra as a dependency.
-  * The processing now happens in a thread. If the thread die, auto-restart.
+  * The processing now happens in a thread. If the thread dies, auto-restart.
   * Enhanced error generator and use JSON instead of XML.
   * Added a backup-etc package to the project.
 
