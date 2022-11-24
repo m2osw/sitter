@@ -1,7 +1,9 @@
 
 A few things that still need to be done in this project:
 
-* Implement all the network shit... listener, PING reply, data sharing
+* Look at all references to XML files in our docs (we now use .ini/.conf files).
+
+* Implement all the network functionaly... listener, PING reply, data sharing
 
 **  With the getifaddr() function we get all the information, per
     interface, of the amount of data transferred and received.

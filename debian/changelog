@@ -1,3 +1,9 @@
+sitter (0.3.1.2~bionic) bionic; urgency=high
+
+  * Added TODO about removing references to old XML files.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sat, 12 Nov 2022 13:46:58 -0800
+
 sitter (0.3.1.1~bionic) bionic; urgency=high
 
   * Fixed the sitter backeup /etc which needs dh-exec and chmod.
