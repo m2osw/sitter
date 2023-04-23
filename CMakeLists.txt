@@ -22,6 +22,7 @@ project(sitter_project)
 
 find_package(AdvGetOpt        REQUIRED)
 find_package(As2Js            REQUIRED)
+find_package(AtomicNames      REQUIRED)
 find_package(Boost            REQUIRED)
 find_package(Communicatord    REQUIRED)
 find_package(CppProcess       REQUIRED)
@@ -38,7 +39,6 @@ find_package(ServerPlugins    REQUIRED)
 find_package(SnapCMakeModules REQUIRED)
 find_package(SnapDev          REQUIRED)
 find_package(SnapLogger       REQUIRED)
-find_package(AtomicNames      REQUIRED)
 
 SnapGetVersion(SITTER ${CMAKE_CURRENT_SOURCE_DIR})
 
