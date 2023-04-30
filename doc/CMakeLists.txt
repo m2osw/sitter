@@ -41,10 +41,17 @@ install(
 install(
     FILES
         find-process.1
-        sitter.1
 
     DESTINATION
         share/man/man1
+)
+
+install(
+    FILES
+        sitter.8
+
+    DESTINATION
+        share/man/man8
 )
 
 # vim: ts=4 sw=4 et nocindent

@@ -4,6 +4,7 @@ usr/bin
 usr/sbin
 usr/share/communicatord
 usr/share/fluid-settings
+usr/share/man
 usr/share/sitter
 usr/share/snaplogger
 

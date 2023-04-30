@@ -3,6 +3,7 @@
 
 [Unit]
 Description=Sitter Daemon
+Documentation=man:sitter(8)
 After=snapbase.service communicatord.service snapfirewall.service snapdbproxy.service
 
 [Service]

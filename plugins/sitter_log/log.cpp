@@ -35,6 +35,7 @@
 
 // snapdev
 //
+#include    <snapdev/chownnm.h>
 #include    <snapdev/enumerate.h>
 #include    <snapdev/glob_to_list.h>
 #include    <snapdev/mounts.h>
@@ -182,7 +183,7 @@ void log::check_log(
         }
 
         uid_t const uid(def.get_uid());
-        if(uid != static_cast<uid_t>(-1)
+        if(uid != snapdev::NO_UID
         && uid != st.st_uid)
         {
             // file ownership mismatch

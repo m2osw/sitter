@@ -8,10 +8,6 @@ find\-process \- Look for processes including command line parameters
 This tool can be used to search for a process by name and command line
 parameters. This allows you to find a specific process even if started
 as a script such as with bash, java, python, etc.
-.SH "PLUGINS"
-The system loads plugins to handle the actual sitter's work. The sitter
-is responsible to find the plugins and run a loop to get all the data
-collected and send an email if required.
 
 .SH "COMMAND LINE OPTIONS"
 .TP
@@ -20,13 +16,13 @@ Display the date and time when the tool was last built.
 
 .TP
 \fB\-\-command\-help\fR
-List the commands understood by `ipmgr'.
+List the commands understood by `find-process'.
 
 .TP
 \fB\-\-compiler\-version\fR
 Output the version information of the C++ compiler used to compile the
 `advgetopt' library. In most cases, this is the same as the compiler used
-to compile the `ipmgr' tool.
+to compile the `find-process' tool.
 
 .TP
 \fB\-\-config\-dir\fR [\fISOURCE\fR]...
@@ -34,7 +30,7 @@ Define a list of configuration directories to search for configuration files.
 
 .TP
 \fB\-\-configuration\-filenames\fR
-List the filename of each configuration file that the `ipmgr' will read
+List the filename of each configuration file that the `find-process' will read
 to get initialized. \fBWARNING:\fR this does not include the zones that
 get loaded later in the process.
 
@@ -49,12 +45,12 @@ files.
 
 .TP
 \fB\-C\fR, \fB\-\-copyright\fR
-Print out the copyright notice of the `ipmgr' tool.
+Print out the copyright notice of the `find-process' tool.
 
 .TP
 \fB\-\-debug\fR
 Change the logger severity to the `debug' level. This command line option
-changes the level of all the appenders configured for `ipmgr'.
+changes the level of all the appenders configured for `find-process'.
 
 .TP
 \fB\-\-default\-expire\fR \fIduration\fR...
@@ -137,7 +133,7 @@ Print a brief document about the tool usage, then exit.
 
 .TP
 \fB\-L\fR, \fB\-\-license\fR
-Print out the license of `ipmgr' and exit.
+Print out the license of `find-process' and exit.
 
 .TP
 \fB\-\-list\-severities\fR
@@ -172,7 +168,7 @@ then messages will appear in the console by default.
 \fB\-\-logger\-hide\-banner\fR
 Request that the logger does not print the banner in the console. This is
 particularly useful for command line options (opposed to a service). The
-`ipmgr' service automatically turns this option on.
+`find-process' service automatically turns this option on.
 
 .TP
 \fB\-\-logger\-show\-banner\fR
@@ -199,7 +195,7 @@ to a quiet or silent option that many Unix tools offer.
 
 .TP
 \fB\-\-option\-help\fR
-Print the list of options supported by `ipmgr'.
+Print the list of options supported by `find-process'.
 
 .TP
 \fB\-\-path\-to\-option\-definitions\fR
@@ -208,7 +204,7 @@ path where it can be found.
 
 .TO
 \fB\-q\fR, \fB\-\-quiet\fR
-Make the `ipmgr' quiet. This flag cancels the effect of \-\-verbose flag.
+Make the `find-process' quiet. This flag cancels the effect of \-\-verbose flag.
 This is also the default.
 
 .TP
@@ -220,7 +216,7 @@ in a while is particularly useful.
 
 .TP
 \fB\-\-slave\fR [\fItrue | false\fR]
-Request the `ipmgr' to generate bind files for the slave server if set to
+Request the `find-process' to generate bind files for the slave server if set to
 true.
 
 .TP
@@ -235,41 +231,18 @@ all the logs that they receive.
 
 .TP
 \fB-v\fR, \fB\-\-verbose\fR
-Show the various steps table by the `ipmgr' before running them.
+Show the various steps table by the `find-process' before running them.
 
 .TP
 \fB\-V\fR, \fB\-\-version\fR
 print version number, then exit
 
-.TP
-\fB\-\-zone\-directories\fR [\fIDIRECTORY\fR]...
-One of more directories to read zone files from. The directories are searched
-for .conf files which will be transformed to BIND9 compatible .zone files.
-
-.SH "ZONE DIRECTORIES"
-.PP
-By default, the zone directories are set to the following three directories:
-.TP
-/usr/share/ipmgr/zones
-A directory where other projects are expected to drop zone files.
-.TP
-/etc/ipmgr/zones
-The directory where the system administrator is expected to add zone files.
-.TP
-/var/lib/ipmgr/zones
-A directory where dynamically created zones are expected to be installed.
-.PP
-.BR Note:
-Zone directories are read in the order specified. This can be
-important if you want a file to make changes, it is possible to do so in a
-later directory. All the files are read before they get processed.
-
 .SH AUTHOR
 Written by Alexis Wilke <alexis@m2osw.com>.
 .SH "REPORTING BUGS"
-Report bugs to <https://github.com/m2osw/ipmgr/issues>.
+Report bugs to <https://github.com/m2osw/sitter/issues>.
 .br
-ipmgr home page: <https://snapwebsites.org/project/ipmgr>.
+sitter home page: <https://snapwebsites.org/project/sitter>.
 .SH COPYRIGHT
 Copyright \(co 2022 Made to Order Software Corporation
 .br
