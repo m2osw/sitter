@@ -354,15 +354,15 @@ std::string scripts::generate_header(std::string const & type)
         // no communicatord defined "my_address", then show
         // all the IPs on this computer
         //
-        addr::iface::vector_t const ips(addr::iface::get_local_addresses());
-        if(!ips.empty())
+        addr::iface::pointer_vector_t const ips(addr::iface::get_local_addresses());
+        if(ips != nullptr)
         {
             header += "IP-Addresses: ";
             std::string sep;
-            for(auto const & i : ips)
+            for(auto const & i : *ips)
             {
                 header += sep;
-                header += i.get_address().to_ipv4or6_string(addr::STRING_IP_BRACKET_ADDRESS);
+                header += i->get_address().to_ipv4or6_string(addr::STRING_IP_BRACKET_ADDRESS);
                 sep = ", ";
             }
             header += '\n';
