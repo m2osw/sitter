@@ -1,4 +1,4 @@
-sitter (0.3.1.2~bionic) bionic; urgency=high
+sitter (0.3.1.2~jammy) jammy; urgency=high
 
   * Added TODO about removing references to old XML files.
 
