@@ -54,7 +54,7 @@ namespace sitter
 namespace firewall
 {
 
-SERVERPLUGINS_START(firewall, 1, 0)
+SERVERPLUGINS_START(firewall)
     , ::serverplugins::description(
             "Check whether the Apache server is running.")
     , ::serverplugins::dependency("server")

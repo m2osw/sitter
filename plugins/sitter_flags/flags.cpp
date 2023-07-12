@@ -55,7 +55,7 @@ namespace flags
 {
 
 
-SERVERPLUGINS_START(flags, 1, 0)
+SERVERPLUGINS_START(flags)
     , ::serverplugins::description(
             "Check raised flags and generate errors accordingly.")
     , ::serverplugins::dependency("server")

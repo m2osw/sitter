@@ -35,6 +35,9 @@ namespace network
 
 
 
+SERVERPLUGINS_VERSION(network, 1, 0)
+
+
 class network
     : public serverplugins::plugin
 {

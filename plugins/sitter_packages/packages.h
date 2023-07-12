@@ -35,6 +35,9 @@ namespace packages
 
 
 
+SERVERPLUGINS_VERSION(packages, 1, 0)
+
+
 class packages
     : public serverplugins::plugin
 {

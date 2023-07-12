@@ -58,7 +58,7 @@ namespace apt
 {
 
 
-SERVERPLUGINS_START(apt, 1, 0)
+SERVERPLUGINS_START(apt)
     , ::serverplugins::description(
             "Check the apt-check results. If an update is available, it"
             " will show up as a low priority \"error\" unless it is marked"

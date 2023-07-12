@@ -35,6 +35,9 @@ namespace firewall
 
 
 
+SERVERPLUGINS_VERSION(firewall, 1, 0)
+
+
 class firewall
     : public serverplugins::plugin
 {

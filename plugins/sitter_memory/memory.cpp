@@ -55,7 +55,7 @@ namespace memory
 {
 
 
-SERVERPLUGINS_START(memory, 1, 0)
+SERVERPLUGINS_START(memory)
     , ::serverplugins::description(
             "Check current memory usage.")
     , ::serverplugins::dependency("server")

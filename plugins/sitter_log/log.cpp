@@ -64,7 +64,7 @@ namespace sitter
 namespace log
 {
 
-SERVERPLUGINS_START(log, 1, 0)
+SERVERPLUGINS_START(log)
     , ::serverplugins::description(
             "Check log files existance, size, ownership, and permissions.")
     , ::serverplugins::dependency("server")

@@ -57,7 +57,7 @@ namespace network
 {
 
 
-SERVERPLUGINS_START(network, 1, 0)
+SERVERPLUGINS_START(network)
     , ::serverplugins::description(
             "Check that the network is up and running.")
     , ::serverplugins::dependency("server")

@@ -40,6 +40,9 @@ namespace log
 
 
 
+SERVERPLUGINS_VERSION(log, 1, 0)
+
+
 class log
     : public serverplugins::plugin
 {

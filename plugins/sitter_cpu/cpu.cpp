@@ -70,7 +70,7 @@ namespace sitter
 namespace cpu
 {
 
-SERVERPLUGINS_START(cpu, 1, 0)
+SERVERPLUGINS_START(cpu)
     , ::serverplugins::description(
             "Check the CPU load and instant usage.")
     , ::serverplugins::dependency("server")

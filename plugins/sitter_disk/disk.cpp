@@ -64,7 +64,7 @@ namespace sitter
 namespace disk
 {
 
-SERVERPLUGINS_START(disk, 1, 0)
+SERVERPLUGINS_START(disk)
     , ::serverplugins::description(
             "Check disk space of all mounted drives.")
     , ::serverplugins::dependency("server")

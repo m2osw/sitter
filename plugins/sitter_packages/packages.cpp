@@ -105,7 +105,7 @@ namespace packages
 {
 
 
-SERVERPLUGINS_START(packages, 1, 0)
+SERVERPLUGINS_START(packages)
     , ::serverplugins::description(
           "Check whether a some required packages are missing,"
           " some installed packages are unwanted (may cause problems"

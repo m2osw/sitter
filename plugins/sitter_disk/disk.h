@@ -35,6 +35,9 @@ namespace disk
 
 
 
+SERVERPLUGINS_VERSION(disk, 1, 0)
+
+
 class disk
     : public serverplugins::plugin
 {

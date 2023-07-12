@@ -76,7 +76,7 @@ namespace sitter
 namespace processes
 {
 
-SERVERPLUGINS_START(processes, 1, 0)
+SERVERPLUGINS_START(processes)
     , ::serverplugins::description(
             "Check whether a set of processes are running.")
     , ::serverplugins::dependency("server")

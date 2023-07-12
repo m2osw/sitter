@@ -33,6 +33,9 @@ namespace flags
 
 
 
+SERVERPLUGINS_VERSION(flags, 1, 0)
+
+
 class flags
     : public serverplugins::plugin
 {

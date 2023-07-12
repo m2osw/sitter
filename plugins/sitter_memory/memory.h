@@ -35,6 +35,9 @@ namespace memory
 
 
 
+SERVERPLUGINS_VERSION(memory, 1, 0)
+
+
 class memory
     : public serverplugins::plugin
 {

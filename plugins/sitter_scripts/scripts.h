@@ -35,6 +35,9 @@ namespace scripts
 
 
 
+SERVERPLUGINS_VERSION(scripts, 1, 0)
+
+
 class scripts
     : public serverplugins::plugin
 {

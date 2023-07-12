@@ -35,6 +35,9 @@ namespace apt
 
 
 
+SERVERPLUGINS_VERSION(apt, 1, 0)
+
+
 class apt
     : public serverplugins::plugin
 {

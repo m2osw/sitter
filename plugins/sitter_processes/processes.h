@@ -35,6 +35,9 @@ namespace processes
 
 
 
+SERVERPLUGINS_VERSION(processes, 1, 0)
+
+
 class processes
     : public serverplugins::plugin
 {

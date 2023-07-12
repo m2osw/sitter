@@ -35,6 +35,9 @@ namespace cpu
 
 
 
+SERVERPLUGINS_VERSION(cpu, 1, 0)
+
+
 class cpu
     : public serverplugins::plugin
 {

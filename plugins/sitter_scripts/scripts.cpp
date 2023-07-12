@@ -84,7 +84,7 @@ namespace scripts
 
 
 
-SERVERPLUGINS_START(scripts, 1, 0)
+SERVERPLUGINS_START(scripts)
     , ::serverplugins::description(
             "Check whether a set of scripts are running.")
     , ::serverplugins::dependency("server")
