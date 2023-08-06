@@ -1,4 +1,4 @@
-# Communicatord Service
+# Communicatord Service Definition
 #
 # This file tells the communicatord that the sitter is a local
 # service and such a service is going to connect to it
