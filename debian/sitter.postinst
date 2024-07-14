@@ -61,7 +61,7 @@ then
     # TODO: look into having a way inside the database to send this signal
     # also at this time we're not saving anything in the db from the sitter
     #
-    #ed-signal snapdbproxy/NEWTABLE
+    #ed-signal snapdbproxy/NEW_TABLE
 fi
 
 # vim: ts=4 sw=4 et nocindent
