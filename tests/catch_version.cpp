@@ -16,14 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// self
-//
-#include    "catch_main.h"
-
-
 // sitter
 //
 #include    <sitter/version.h>
+
+
+// self
+//
+#include    "catch_main.h"
 
 
 // last include
@@ -33,9 +33,9 @@
 
 
 
-CATCH_TEST_CASE("Version", "[version]")
+CATCH_TEST_CASE("version", "[version]")
 {
-    CATCH_START_SECTION("verify runtime vs compile time sitter version numbers")
+    CATCH_START_SECTION("version: verify runtime vs compile time sitter version numbers")
     {
         CATCH_REQUIRE(sitter::get_major_version()   == SITTER_VERSION_MAJOR);
         CATCH_REQUIRE(sitter::get_release_version() == SITTER_VERSION_MINOR);
