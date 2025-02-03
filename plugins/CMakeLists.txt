@@ -37,6 +37,7 @@ add_subdirectory(sitter_memory)
 add_subdirectory(sitter_network)
 add_subdirectory(sitter_packages)
 add_subdirectory(sitter_processes)
+add_subdirectory(sitter_reboot)
 add_subdirectory(sitter_scripts)
 
 

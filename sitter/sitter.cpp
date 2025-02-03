@@ -1249,7 +1249,10 @@ std::string server::get_server_parameter(std::string const & name) const
 /** \brief Get the path to a file in the sitter cache.
  *
  * This function returns a full path to the sitter cache plus
- * the specified filename.
+ * the specified \p filename.
+ *
+ * \p filename should just be a filename. i.e. it should not
+ * include any slashes. It should also be unique to your plugin.
  *
  * \param[in] filename  The name of the file to access in the cache.
  *

@@ -16,18 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-AtomicNames("names.an")
-
-project(sitter_disk)
+# Plugin names must use underscores
+project(sitter_reboot)
 
 add_library(${PROJECT_NAME} SHARED
-    disk.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
+    reboot.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        ${SNAPDEV_INCLUDE_DIRS}
+        ${CPPTHREAD_INCLUDE_DIRS}
 )
 
 install(
@@ -47,15 +45,6 @@ install(
 
     FILES_MATCHING PATTERN
         "*.h"
-)
-
-# definitions for fluid-settings
-install(
-    FILES
-        sitter-disk.ini
-
-    DESTINATION
-        ${FLUIDSETTINGS_DEFINITIONS_INSTALL_DIR}
 )
 
 # vim: ts=4 sw=4 et

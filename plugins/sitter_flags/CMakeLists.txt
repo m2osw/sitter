@@ -38,10 +38,10 @@ install(
 
 install(
     DIRECTORY
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/
 
     DESTINATION
-        include/sitter/plugins/flags
+        include/sitter/plugins
 
     FILES_MATCHING PATTERN
         "*.h"

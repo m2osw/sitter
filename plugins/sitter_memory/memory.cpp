@@ -60,7 +60,7 @@ SERVERPLUGINS_START(memory)
             "Check current memory usage.")
     , ::serverplugins::dependency("server")
     , ::serverplugins::help_uri("https://snapwebsites.org/help")
-    , ::serverplugins::categorization_tag("memory")
+    , ::serverplugins::categorization_tag("os")
 SERVERPLUGINS_END(memory)
 
 

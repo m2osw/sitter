@@ -75,7 +75,7 @@ SERVERPLUGINS_START(cpu)
             "Check the CPU load and instant usage.")
     , ::serverplugins::dependency("server")
     , ::serverplugins::help_uri("https://snapwebsites.org/help")
-    , ::serverplugins::categorization_tag("packages")
+    , ::serverplugins::categorization_tag("os")
 SERVERPLUGINS_END(cpu)
 
 
@@ -106,6 +106,8 @@ void cpu::on_process_watch(as2js::json::json_value_ref & json)
         << "cpu::on_process_watch(): processing"
         << SNAP_LOG_SEND;
 
+    sitter::server::pointer_t server(plugins()->get_server<sitter::server>());
+
     as2js::json::json_value_ref e(json["cpu"]);
 
     sys_stats info;
@@ -129,8 +131,7 @@ void cpu::on_process_watch(as2js::json::json_value_ref & json)
         // okay (not overloaded) then we want to delete the file
         // which in effect resets the timer
         //
-        std::string cache_path = "/var/cache/sitter";
-        std::string const high_cpu_usage_filename(cache_path + "/high_cpu_usage.txt");
+        std::string const high_cpu_usage_filename(server->get_cache_path("high_cpu_usage.txt"));
 
         double max_avg1(cpu_count);
         if(max_avg1 > 1.0) // with 1 CPU, go up to 100%
@@ -173,7 +174,7 @@ void cpu::on_process_watch(as2js::json::json_value_ref & json)
                     {
                         // processors are overloaded on this machine
                         //
-                        plugins()->get_server<sitter::server>()->append_error(
+                        server->append_error(
                               json
                             , "cpu"
                             , "High CPU usage."
