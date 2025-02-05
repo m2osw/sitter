@@ -1405,17 +1405,38 @@ void server::append_error(
 
     // log the error so we have a trace
     //
-    std::string clean_message(snapdev::string_replace_many(
+    std::string const clean_message(snapdev::string_replace_many(
               message
             , { { "\n", " -- " } }));
-    SNAP_LOG_ERROR
+    ::snaplogger::severity_t severity(::snaplogger::severity_t::SEVERITY_IMPORTANT);
+    if(priority >= 90)
+    {
+        severity = ::snaplogger::severity_t::SEVERITY_SEVERE;
+    }
+    else if(priority >= 70)
+    {
+        severity = ::snaplogger::severity_t::SEVERITY_ERROR;
+    }
+    else if(priority >= 50)
+    {
+        severity = ::snaplogger::severity_t::SEVERITY_MAJOR;
+    }
+    else if(priority >= 35)
+    {
+        severity = ::snaplogger::severity_t::SEVERITY_WARNING;
+    }
+    else if(priority >= 10)
+    {
+        severity = ::snaplogger::severity_t::SEVERITY_MINOR;
+    }
+    ::snaplogger::send_message(((*::snaplogger::create_message())
         << "plugin \""
         << plugin_name
         << "\" detected an error: "
         << clean_message
         << " ("
         << priority
-        << ")"
+        << ")."
         << SNAP_LOG_SEND;
 
     if(priority < 0 || priority > 100)

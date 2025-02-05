@@ -30,19 +30,19 @@
 
 namespace sitter
 {
-namespace reboot
+namespace certificate
 {
 
 
 
-SERVERPLUGINS_VERSION(reboot, 1, 0)
+SERVERPLUGINS_VERSION(certificate, 1, 0)
 
 
-class reboot
+class certificate
     : public serverplugins::plugin
 {
 public:
-    SERVERPLUGINS_DEFAULTS(reboot);
+    SERVERPLUGINS_DEFAULTS(certificate);
 
     // serverplugins::plugin implementation
     virtual void        bootstrap() override;
@@ -51,9 +51,13 @@ public:
     void                on_process_watch(as2js::json::json_value_ref & json);
 
 private:
+    void                parse_delays();
+
+    std::map<std::int64_t, std::int64_t>    f_delays_n_priorities = std::map<std::int64_t, std::int64_t>();
+    std::map<std::string, time_t>           f_access_error = std::map<std::string, time_t>();
 };
 
 
-} // namespace reboot
+} // namespace certificate
 } // namespace sitter
 // vim: ts=4 sw=4 et
