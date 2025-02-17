@@ -92,11 +92,15 @@ void firewall::on_process_watch(as2js::json::json_value_ref & json)
 
     as2js::json::json_value_ref e(json["firewall"]);
 
-    // first we check that the snapfirewall daemon is running
+    // first we check that the ipwall daemon is running
+    //
+    // WARNING: the ipwall process has "nothing" to do with whether the
+    //          firewall is up; what we need to test is whether the ipload
+    //          service is "active" (ran successfully)
     //
     cppprocess::process_list list;
-    cppprocess::process_info::pointer_t info(list.find("snapfirewall"));
-    if(!plugins()->get_server<sitter::server>()->output_process("firewall", e, info, "snapfirewall", 95))
+    cppprocess::process_info::pointer_t info(list.find("ipwall"));
+    if(!plugins()->get_server<sitter::server>()->output_process("firewall", e, info, "ipwall", 95))
     {
         return;
     }

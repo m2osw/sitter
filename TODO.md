@@ -3,7 +3,7 @@ A few things that still need to be done in this project:
 
 * Look at all references to XML files in our docs (we now use .ini/.conf files).
 
-* Implement all the network functionaly... listener, PING reply, data sharing
+* Implement all the network functionality... listener, PING reply, data sharing
 
 **  With the getifaddr() function we get all the information, per
     interface, of the amount of data transferred and received.
@@ -41,6 +41,10 @@ A few things that still need to be done in this project:
         This plugin should be part of the ipmgr project.
 
 * Move firewall plugin to iplock.
+
+  Also, it needs fixing since it checks whether ipwall is running to determine
+  the firewall status, which is wrong. The functionality is also duplicated
+  from the `wait_on_firewall` class found in the iplock library.
 
 * Actually implement real unit tests.
 
