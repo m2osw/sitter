@@ -250,7 +250,7 @@ void sitter_worker::run_plugins()
     std::string const data_path(f_server->get_server_parameter(g_name_sitter_data_path));
     if(!data_path.empty())
     {
-        int64_t const date(((start_date / 60LL) * 60LL) % f_server->get_statistics_period());
+        std::int64_t const date(((start_date / 60LL) * 60LL) % f_server->get_statistics_period());
         std::string const filename(data_path + '/' + std::to_string(date) + ".json");
         snapdev::file_contents output(filename);
         output.contents(json.get_value()->to_string());
@@ -260,7 +260,7 @@ void sitter_worker::run_plugins()
     int const error_count(f_server->get_error_count());
     if(error_count > 0)
     {
-        int64_t const diff(end_date - start_date);
+        std::int64_t const diff(end_date - start_date);
         if(diff >= f_server->get_error_report_settle_time())
         {
             report_error(json, start_date);
