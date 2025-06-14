@@ -86,6 +86,17 @@ void apt::bootstrap()
  *
  * This function runs this plugin actual check.
  *
+ * \todo
+ * By default the cache uses a path to snapwebsites. Since we just have to
+ * read the file, I think we're okay, but it could be inaccessible to the
+ * sitter.
+ *
+ * \todo
+ * When the snapmanagerdaemon is not running, the file does not get
+ * re-created. (i.e. We generate two errors over and over again: the
+ * daemon is missing & this file is missing.) It would be nice to avoid
+ * this second error.
+ *
  * \param[in] json  The document where the results are collected.
  */
 void apt::on_process_watch(as2js::json::json_value_ref & json)
@@ -139,7 +150,7 @@ void apt::on_process_watch(as2js::json::json_value_ref & json)
         {
             time_t const now(time(nullptr));
 
-            std::int64_t cached_on;
+            std::int64_t cached_on(0);
             advgetopt::validator_integer::convert_string(counts[0], cached_on);
 
             // save the date when it was last updated
@@ -163,12 +174,13 @@ void apt::on_process_watch(as2js::json::json_value_ref & json)
 
                 // counts[1] packages can be upgraded
                 //
-                std::int64_t count;
+                std::int64_t count(0);
                 advgetopt::validator_integer::convert_string(counts[1], count);
                 e["total-updates"] = count;
 
                 // counts[2] are security upgrades
                 //
+                count = 0;
                 advgetopt::validator_integer::convert_string(counts[2], count);
                 e["security-updates"] = count;
 
