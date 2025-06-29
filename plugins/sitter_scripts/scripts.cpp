@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2023  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2013-2025  Made to Order Software Corp.  All Rights Reserved
 //
 // https://snapwebsites.org/project/sitter
 // contact@m2osw.com
@@ -51,7 +51,7 @@
 #include    <snaplogger/message.h>
 
 
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/enumerate.h>
 #include    <snapdev/file_contents.h>
@@ -60,7 +60,7 @@
 #include    <snapdev/trim_string.h>
 
 
-// libaddr lib
+// libaddr
 //
 #include    <libaddr/addr.h>
 #include    <libaddr/iface.h>
