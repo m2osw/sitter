@@ -1,4 +1,4 @@
-sitter (0.3.2.0~noble) bionic; urgency=high
+sitter (0.3.2.0~noble) noble; urgency=high
 
   * Make sure variables are initialized.
   * Fixed the process name for ipwall.
@@ -8,6 +8,7 @@ sitter (0.3.2.0~noble) bionic; urgency=high
   * Fixed installation plugin headers (removed one folder).
   * Fixed categorization tags.
   * Updated the LOG_ROTATE message.
+  * Moved debian/compat version to debian/control dependencies.
 
  -- Alexis Wilke <alexis@m2osw.com>  Mon, 21 Jul 2025 20:35:28 -0700
 
