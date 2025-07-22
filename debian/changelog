@@ -1,3 +1,16 @@
+sitter (0.3.2.0~noble) bionic; urgency=high
+
+  * Make sure variables are initialized.
+  * Fixed the process name for ipwall.
+  * Added a certificate plugin.
+  * Added the reboot plugin as one of the defaults.
+  * Use log severity of errors based on message priority.
+  * Fixed installation plugin headers (removed one folder).
+  * Fixed categorization tags.
+  * Updated the LOG_ROTATE message.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Mon, 21 Jul 2025 20:35:28 -0700
+
 sitter (0.3.1.3~bionic) bionic; urgency=high
 
   * Bumped build version to rebuild on Launchpad.
