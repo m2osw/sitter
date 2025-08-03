@@ -75,9 +75,8 @@ namespace sitter
 
 
 
-
 sitter_worker::sitter_worker(
-          server::pointer_t s
+          std::shared_ptr<server> s
         , worker_done::pointer_t done)
     : runner("sitter-worker")
     , f_server(s)
