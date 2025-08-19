@@ -4,13 +4,13 @@
 [Unit]
 Description=Sitter Daemon
 Documentation=man:sitter(8)
-After=snapbase.service communicatord.service snapfirewall.service snapdbproxy.service
+After=ipload.service
 
 [Service]
 Type=simple
 WorkingDirectory=~
 ProtectHome=true
-# WARNING: we start sendmail from postfix and our snapmta, in the first case
+# WARNING: we start sendmail from postfix or our snapmta, in the first case
 #          it requires postdrop as a group and in the second case it becomes
 #          root when it wants to save an email in /var/mail/root--so the
 #          result is that we need to allow changes in privileges
