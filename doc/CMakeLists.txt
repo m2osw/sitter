@@ -22,12 +22,12 @@
 ##
 project(sitter-documentation)
 
-find_package(SnapDoxygen QUIET)
-AddDoxygenTarget(sitter
+find_package(SnapDoxygen)
+AddDoxygenTarget(
+    sitter
     ${SITTER_VERSION_MAJOR}
     ${SITTER_VERSION_MINOR}
     ${SITTER_VERSION_PATCH}
-    QUIET
 )
 
 install(
