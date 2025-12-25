@@ -620,7 +620,7 @@ void save_cache(sitter::server::pointer_t server)
  */
 void packages::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(packages, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(packages, server, process_watch, boost::placeholders::_1);
 }
 
 

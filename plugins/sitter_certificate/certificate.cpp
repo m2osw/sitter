@@ -103,7 +103,7 @@ time_t                          g_last_delay_error = 0;
  */
 void certificate::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(certificate, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(certificate, server, process_watch, boost::placeholders::_1);
 }
 
 

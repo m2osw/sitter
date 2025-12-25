@@ -217,7 +217,7 @@ int statvfs_try(char const * path, struct statvfs * s, unsigned int seconds)
  */
 void disk::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(disk, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(disk, server, process_watch, boost::placeholders::_1);
 }
 
 

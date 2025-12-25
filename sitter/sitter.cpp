@@ -96,6 +96,10 @@ namespace
 
 /** \brief The sitter server.
  *
+ * \warning
+ * THIS SEEMS INCORRECT. The serverplugins saves servers in a map which it
+ * manages and we should not have to have our own instance() implementation.
+ *
  * This variable holds the server. The server::instance() function returns
  * the pointer. However, it does not allocate it. The main.cpp of the daemon
  * implementation allocates the server passing the argc/argv parameters and
@@ -205,10 +209,16 @@ server::server(int argc, char * argv[])
         DISPATCHER_MATCH("RELOADCONFIG", &server::msg_reload_config),
         DISPATCHER_MATCH("RUSAGE",       &server::msg_rusage),
     });
+
+    add_communicator_commands();
 }
 
 
 /** \brief Save the pointer to the instance of the server.
+ *
+ * \warning
+ * THIS SEEMS INCORRECT. The serverplugins saves servers in a map which it
+ * manages and we should not have to have our own instance() implementation.
  *
  * The server is created by the main() function. It then calls this function
  * to save the pointer_t of the server in a global variable managed internally
@@ -232,6 +242,10 @@ void server::set_instance(pointer_t s)
 
 
 /** \brief Retrieve a pointer to the sitter server.
+ *
+ * \warning
+ * THIS SEEMS INCORRECT. The serverplugins saves servers in a map which it
+ * manages and we should not have to have our own instance() implementation.
  *
  * This function retrieve an instance pointer of the sitter server.
  * If the instance does not exist yet, then it gets created. A

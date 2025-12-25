@@ -90,7 +90,7 @@ SERVERPLUGINS_END(reboot)
  */
 void reboot::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(reboot, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(reboot, server, process_watch, boost::placeholders::_1);
 }
 
 

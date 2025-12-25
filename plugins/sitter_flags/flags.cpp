@@ -22,9 +22,9 @@
 #include    "flags.h"
 
 
-// communicatord
+// communicator
 //
-#include    <communicatord/flags.h>
+#include    <communicator/flags.h>
 
 
 // snaplogger
@@ -73,7 +73,7 @@ SERVERPLUGINS_END(flags)
  */
 void flags::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(flags, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(flags, server, process_watch, boost::placeholders::_1);
 }
 
 
@@ -92,7 +92,7 @@ void flags::on_process_watch(as2js::json::json_value_ref & json)
     // check whether we have any flags that are currently raised
     // if not, we just return ASAP
     //
-    communicatord::flag::list_t list(communicatord::flag::load_flags());
+    communicator::flag::list_t list(communicator::flag::load_flags());
     if(list.empty())
     {
         return;
@@ -125,7 +125,7 @@ void flags::on_process_watch(as2js::json::json_value_ref & json)
         e["function"] =    f->get_function();
         e["line"] =        f->get_line();
 
-        communicatord::flag::tag_list_t const & tag_list(f->get_tags());
+        communicator::flag::tag_list_t const & tag_list(f->get_tags());
         if(!tag_list.empty())
         {
             for(auto const & t : tag_list)

@@ -42,7 +42,7 @@ add_library(${PROJECT_NAME} SHARED
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         ${AS2JS_INCLUDE_DIRS}
-        ${COMMUNICATORD_INCLUDE_DIRS}
+        ${COMMUNICATOR_INCLUDE_DIRS}
         ${CPPPROCESS_INCLUDE_DIRS}
         ${EDHTTP_INCLUDE_DIRS}
         ${EVENTDISPATCHER_INCLUDE_DIRS}
@@ -56,7 +56,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         ${AS2JS_LIBRARIES}
-        ${COMMUNICATORD_LIBRARIES}
+        ${COMMUNICATOR_LIBRARIES}
         ${CPPPROCESS_LIBRARIES}
         ${EDHTTP_LIBRARIES}
         ${EVENTDISPATCHER_LIBRARIES}

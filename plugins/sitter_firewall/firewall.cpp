@@ -74,7 +74,7 @@ SERVERPLUGINS_END(firewall)
  */
 void firewall::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(firewall, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(firewall, server, process_watch, boost::placeholders::_1);
 }
 
 

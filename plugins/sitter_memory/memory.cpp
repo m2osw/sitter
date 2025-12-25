@@ -73,7 +73,7 @@ SERVERPLUGINS_END(memory)
  */
 void memory::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(memory, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(memory, server, process_watch, boost::placeholders::_1);
 }
 
 

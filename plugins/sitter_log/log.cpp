@@ -82,7 +82,7 @@ SERVERPLUGINS_END(log)
  */
 void log::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(log, "server", server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(log, server, process_watch, boost::placeholders::_1);
 }
 
 
