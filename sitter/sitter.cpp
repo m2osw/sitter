@@ -109,7 +109,9 @@ namespace
  *
  * \note
  * Having an instance() function is a requirement of the serverplugins
- * implementation.
+ * implementation. -- THIS IS NOT TRUE ANYMORE; the server pointer is
+ * saved as a plugin and the server in the collections. We'll have to
+ * fix that at some point.
  */
 server::pointer_t               g_server;
 
@@ -137,15 +139,12 @@ advgetopt::group_description const g_group_descriptions[] =
 };
 
 
-// until we have C++20 remove warnings this way
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
 advgetopt::options_environment const g_options_environment =
 {
     .f_project_name = "sitter",
-    .f_group_name = nullptr,
+    .f_group_name = "sitter",
     .f_options = g_options,
-    .f_options_files_directory = nullptr,
+    .f_options_files_directory = "/usr/share/sitter/options",
     .f_environment_variable_name = "SITTER_OPTIONS",
     .f_environment_variable_intro = "SITTER_",
     .f_section_variables_name = nullptr,
@@ -162,11 +161,8 @@ advgetopt::options_environment const g_options_environment =
     .f_copyright = "Copyright (c) 2013-"
                    BOOST_PP_STRINGIZE(UTC_BUILD_YEAR)
                    " by Made to Order Software Corporation -- All Rights Reserved",
-    .f_build_date = UTC_BUILD_DATE,
-    .f_build_time = UTC_BUILD_TIME,
     .f_groups = g_group_descriptions,
 };
-#pragma GCC diagnostic pop
 
 
 
@@ -189,7 +185,6 @@ server::server(int argc, char * argv[])
     , f_communicatord_disconnected(snapdev::timespec_ex::gettime())
 {
     snaplogger::add_logger_options(f_opts);
-    add_plugin_options();
     f_opts.finish_parsing(argc, argv);
     if(!snaplogger::process_logger_options(f_opts, "/etc/sitter/logger"))
     {
@@ -265,50 +260,6 @@ server::pointer_t server::instance()
     }
 
     return g_server;
-}
-
-
-/** \brief Load the plugin options.
- *
- * The command line options are loaded from the plugin .ini files too so that
- * way each plugin can have its own set of options.
- */
-void server::add_plugin_options()
-{
-    std::string name(f_opts.get_options_filename());
-    if(name.length() < 5)
-    {
-        return;
-    }
-
-    if(name.substr(name.length() - 4) != ".ini")
-    {
-        SNAP_LOG_WARNING
-            << "the options filename ("
-            << name
-            << ") does not end with \".ini\"."
-            << SNAP_LOG_SEND;
-        return;
-    }
-
-    name = name.substr(0, name.length() - 4) + "-*.ini";
-    snapdev::glob_to_list<std::list<std::string>> glob;
-    if(!glob.read_path<
-             snapdev::glob_to_list_flag_t::GLOB_FLAG_IGNORE_ERRORS,
-             snapdev::glob_to_list_flag_t::GLOB_FLAG_PERIOD>(name))
-    {
-        return;
-    }
-
-    for(auto const & n : glob)
-    {
-        SNAP_LOG_CONFIGURATION
-            << "loading additional command line options from \""
-            << n
-            << "\".\n"
-            << SNAP_LOG_SEND;
-        f_opts.parse_options_from_file(n, 1, 1);
-    }
 }
 
 

@@ -155,7 +155,6 @@ public:
 private:
     void                define_server_name();
     void                record_usage(ed::message const & message);
-    void                add_plugin_options();
 
     advgetopt::getopt   f_opts;
     ed::communicator::pointer_t
