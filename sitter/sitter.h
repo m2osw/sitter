@@ -52,11 +52,13 @@ namespace sitter
 {
 
 
+SERVERPLUGINS_VERSION(server, 1, 0)
+
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 class server
-    : public std::enable_shared_from_this<server>
-    , public ed::connection_with_send_message
+    : public ed::connection_with_send_message
     , public ed::dispatcher
     , public serverplugins::server
 {
@@ -90,8 +92,6 @@ public:
 
                         server(int argc, char * argv[]);
 
-    static void         set_instance(pointer_t s);
-    static pointer_t    instance();
     int                 run();
 
     void                ready(ed::message & message);
@@ -195,6 +195,7 @@ private:
                         f_worker_thread = cppthread::thread::pointer_t();
 };
 #pragma GCC diagnostic pop
+
 
 
 } // namespace sitter

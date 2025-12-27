@@ -94,28 +94,6 @@ namespace
 {
 
 
-/** \brief The sitter server.
- *
- * \warning
- * THIS SEEMS INCORRECT. The serverplugins saves servers in a map which it
- * manages and we should not have to have our own instance() implementation.
- *
- * This variable holds the server. The server::instance() function returns
- * the pointer. However, it does not allocate it. The main.cpp of the daemon
- * implementation allocates the server passing the argc/argv parameters and
- * then it saves it using the set_instance() function.
- *
- * At this point, this pointer never gets reset.
- *
- * \note
- * Having an instance() function is a requirement of the serverplugins
- * implementation. -- THIS IS NOT TRUE ANYMORE; the server pointer is
- * saved as a plugin and the server in the collections. We'll have to
- * fix that at some point.
- */
-server::pointer_t               g_server;
-
-
 
 advgetopt::option const g_options[] =
 {
@@ -147,10 +125,7 @@ advgetopt::options_environment const g_options_environment =
     .f_options_files_directory = "/usr/share/sitter/options",
     .f_environment_variable_name = "SITTER_OPTIONS",
     .f_environment_variable_intro = "SITTER_",
-    .f_section_variables_name = nullptr,
-    .f_configuration_files = nullptr,
     .f_configuration_filename = "sitter.conf",
-    .f_configuration_directories = nullptr,
     .f_environment_flags = advgetopt::GETOPT_ENVIRONMENT_FLAG_SYSTEM_PARAMETERS
                          | advgetopt::GETOPT_ENVIRONMENT_FLAG_PROCESS_SYSTEM_PARAMETERS,
     .f_help_header = "Usage: %p [-<opt>] <process-name>\n"
@@ -170,6 +145,13 @@ advgetopt::options_environment const g_options_environment =
 
 
 
+SERVERPLUGINS_START_SERVER(server)
+    , ::serverplugins::description("The sitter plugin extensions.")
+    , ::serverplugins::help_uri("https://snapwebsites.org/help")
+    , ::serverplugins::categorization_tag("server")
+SERVERPLUGINS_END_SERVER(server)
+
+
 
 /** \brief Initialize the sitter server.
  *
@@ -178,7 +160,7 @@ advgetopt::options_environment const g_options_environment =
  */
 server::server(int argc, char * argv[])
     : dispatcher(this)
-    , serverplugins::server(serverplugins::get_id("sitter"))
+    , serverplugins::server(g_server_factory)
     , f_opts(g_options_environment)
     , f_communicator(ed::communicator::instance())
     , f_messenger(std::make_shared<messenger>(this, f_opts))
@@ -209,64 +191,10 @@ server::server(int argc, char * argv[])
 }
 
 
-/** \brief Save the pointer to the instance of the server.
- *
- * \warning
- * THIS SEEMS INCORRECT. The serverplugins saves servers in a map which it
- * manages and we should not have to have our own instance() implementation.
- *
- * The server is created by the main() function. It then calls this function
- * to save the pointer_t of the server in a global variable managed internally
- * and accessible from the instance() function.
- *
- * \exception logic_error
- * If the g_server pointer is already set (not nullptr), then this exception
- * is raised.
- *
- * \param[in] s  The new server.
- */
-void server::set_instance(pointer_t s)
-{
-    if(g_server != nullptr)
-    {
-        throw logic_error("the server is already defined.");
-    }
-
-    g_server = s;
-}
-
-
-/** \brief Retrieve a pointer to the sitter server.
- *
- * \warning
- * THIS SEEMS INCORRECT. The serverplugins saves servers in a map which it
- * manages and we should not have to have our own instance() implementation.
- *
- * This function retrieve an instance pointer of the sitter server.
- * If the instance does not exist yet, then it gets created. A
- * server is also a plugin which is named "server".
- *
- * \exception logic_error
- * This exception is raised if this function gets called before the
- * set_instance() happens.
- *
- * \return The managed pointer to the sitter server.
- */
-server::pointer_t server::instance()
-{
-    if(g_server == nullptr)
-    {
-        throw logic_error("the server pointer was not yet defined with set_instance().");
-    }
-
-    return g_server;
-}
-
-
 /** \brief Finish sitter initialization and start the event loop.
  *
  * This function finishes the initialization such as defining the
- * server name, check that cassandra is available, and create various
+ * server name, check that prinbee is available, and create various
  * connections such as the messenger to communicate with the
  * communicatord service.
  */
@@ -285,7 +213,7 @@ int server::run()
     // to any running services
     //
     f_communicator->add_connection(f_messenger);
-    f_messenger->finish_initialization(shared_from_this());
+    f_messenger->finish_initialization(std::dynamic_pointer_cast<ed::dispatcher>(shared_from_this()));
 
     // add the ticker, this wakes the system up once in a while so
     // we can gather statistics at a given interval
@@ -297,7 +225,7 @@ int server::run()
     //
     f_worker_done = std::make_shared<worker_done>(this);
     f_communicator->add_connection(f_worker_done);
-    f_worker = std::make_shared<sitter_worker>(shared_from_this(), f_worker_done);
+    f_worker = std::make_shared<sitter_worker>(std::static_pointer_cast<server>(shared_from_this()), f_worker_done);
     f_worker_thread = std::make_shared<cppthread::thread>("worker", f_worker);
     f_worker_thread->start();
 

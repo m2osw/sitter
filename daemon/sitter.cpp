@@ -60,7 +60,7 @@ int main(int argc, char * argv[])
     try
     {
         sitter::server::pointer_t s(std::make_shared<sitter::server>(argc, argv));
-        s->set_instance(s);
+        s->complete_plugin_initialization();
         return s->run();
     }
     catch(advgetopt::getopt_exit const & e)
