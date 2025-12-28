@@ -829,7 +829,7 @@ void load_processes(std::string processes_path)
  */
 void processes::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(processes, server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(processes, server, process_watch, std::placeholders::_1);
 }
 
 

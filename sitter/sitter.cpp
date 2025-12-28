@@ -47,6 +47,7 @@
 #include    <snapdev/gethostname.h>
 #include    <snapdev/glob_to_list.h>
 #include    <snapdev/mkdir_p.h>
+#include    <snapdev/stringize.h>
 #include    <snapdev/string_replace_many.h>
 
 
@@ -134,7 +135,7 @@ advgetopt::options_environment const g_options_environment =
     .f_version = SITTER_VERSION_STRING,
     .f_license = "GNU GPL v2",
     .f_copyright = "Copyright (c) 2013-"
-                   BOOST_PP_STRINGIZE(UTC_BUILD_YEAR)
+                   SNAPDEV_STRINGIZE(UTC_BUILD_YEAR)
                    " by Made to Order Software Corporation -- All Rights Reserved",
     .f_groups = g_group_descriptions,
 };

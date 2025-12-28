@@ -90,7 +90,7 @@ SERVERPLUGINS_END(cpu)
  */
 void cpu::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(cpu, server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(cpu, server, process_watch, std::placeholders::_1);
 }
 
 

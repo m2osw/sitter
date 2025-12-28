@@ -76,7 +76,7 @@ SERVERPLUGINS_END(network)
  */
 void network::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(network, server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(network, server, process_watch, std::placeholders::_1);
 }
 
 

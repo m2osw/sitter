@@ -78,7 +78,7 @@ SERVERPLUGINS_END(apt)
  */
 void apt::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(apt, server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(apt, server, process_watch, std::placeholders::_1);
 }
 
 

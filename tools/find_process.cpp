@@ -28,17 +28,13 @@
 // snapdev
 //
 #include    <snapdev/not_reached.h>
+#include    <snapdev/stringize.h>
 
 
 // advgetopt
 //
 #include    <advgetopt/advgetopt.h>
 #include    <advgetopt/exception.h>
-
-
-// boost
-//
-#include    <boost/preprocessor/stringize.hpp>
 
 
 // C++
@@ -115,7 +111,7 @@ advgetopt::options_environment const g_command_line_options_environment =
     .f_version = SITTER_VERSION_STRING,
     .f_license = "GNU GPL v2",
     .f_copyright = "Copyright (c) 2013-"
-                   BOOST_PP_STRINGIZE(UTC_BUILD_YEAR)
+                   SNAPDEV_STRINGIZE(UTC_BUILD_YEAR)
                    " by Made to Order Software Corporation -- All Rights Reserved",
     //.f_build_date = UTC_BUILD_DATE,
     //.f_build_time = UTC_BUILD_TIME

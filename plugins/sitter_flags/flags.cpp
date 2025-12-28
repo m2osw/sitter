@@ -73,7 +73,7 @@ SERVERPLUGINS_END(flags)
  */
 void flags::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(flags, server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(flags, server, process_watch, std::placeholders::_1);
 }
 
 

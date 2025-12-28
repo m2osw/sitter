@@ -107,7 +107,7 @@ SERVERPLUGINS_END(scripts)
  */
 void scripts::bootstrap()
 {
-    SERVERPLUGINS_LISTEN(scripts, server, process_watch, boost::placeholders::_1);
+    SERVERPLUGINS_LISTEN(scripts, server, process_watch, std::placeholders::_1);
 
     sitter::server::pointer_t server(plugins()->get_server<sitter::server>());
     f_script_starter = server->get_server_parameter(g_name_scripts_starter);
