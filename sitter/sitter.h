@@ -59,7 +59,6 @@ SERVERPLUGINS_VERSION(server, 1, 0)
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 class server
     : public ed::connection_with_send_message
-    , public ed::dispatcher
     , public serverplugins::server
 {
 public:
@@ -119,7 +118,6 @@ public:
     void                process_tick();
 
     void                msg_rusage(ed::message & message);
-    void                msg_reload_config(ed::message & message);
 
     void                clear_cache(std::string const & name);
     bool                output_process(

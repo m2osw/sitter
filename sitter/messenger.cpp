@@ -21,6 +21,7 @@
 //
 #include    "sitter/messenger.h"
 
+#include    "sitter/names.h"
 #include    "sitter/sitter.h"
 
 
@@ -75,23 +76,21 @@ namespace sitter
 messenger::messenger(server * s, advgetopt::getopt & opts)
     : fluid_settings::fluid_settings_connection(opts, "sitter")
     , f_server(s)
-    , f_dispatcher(std::make_shared<ed::dispatcher>(this))
 {
-    set_name("messenger");
+    set_name("sitter_messenger");
+
+    get_dispatcher()->add_matches({
+        ed::define_match(
+              ed::Expression(g_name_sitter_cmd_rusage)
+            , ed::Callback(std::bind(&server::msg_rusage, f_server, std::placeholders::_1))
+        ),
+    });
 }
 
 
-void messenger::finish_initialization(ed::dispatcher::pointer_t dispatcher)
+void messenger::finish_initialization()
 {
-    set_dispatcher(dispatcher);
-
-    add_fluid_settings_commands();
-
-    // add the communicator commands last (it includes the "always match")
-    dispatcher->add_communicator_commands();
-
     process_fluid_settings_options();
-
     automatic_watch_initialization();
 }
 

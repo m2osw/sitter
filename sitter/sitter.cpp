@@ -160,8 +160,7 @@ SERVERPLUGINS_END_SERVER(server)
  * sitter server configuration file.
  */
 server::server(int argc, char * argv[])
-    : dispatcher(this)
-    , serverplugins::server(g_server_factory)
+    : serverplugins::server(g_server_factory)
     , f_opts(g_options_environment)
     , f_communicator(ed::communicator::instance())
     , f_messenger(std::make_shared<messenger>(this, f_opts))
@@ -175,20 +174,6 @@ server::server(int argc, char * argv[])
         //
         throw advgetopt::getopt_exit("logger options generated an error.", 0);
     }
-
-    // further dispatcher initialization
-    //
-#ifdef _DEBUG
-    set_trace();
-    set_show_matches();
-#endif
-
-    add_matches({
-        DISPATCHER_MATCH("RELOADCONFIG", &server::msg_reload_config),
-        DISPATCHER_MATCH("RUSAGE",       &server::msg_rusage),
-    });
-
-    add_communicator_commands();
 }
 
 
@@ -214,7 +199,7 @@ int server::run()
     // to any running services
     //
     f_communicator->add_connection(f_messenger);
-    f_messenger->finish_initialization(std::dynamic_pointer_cast<ed::dispatcher>(shared_from_this()));
+    f_messenger->finish_initialization();
 
     // add the ticker, this wakes the system up once in a while so
     // we can gather statistics at a given interval
@@ -234,9 +219,9 @@ int server::run()
     //
     f_communicator->run();
 
-    // got a RELOADCONFIG message?
+    // got a RELOAD_CONFIG message?
     // (until our daemons are capable of reloading configuration files
-    // or rather, until we have the `fluid-settings` daemon)
+    // or rather, until we have the `fluid-settings` daemon fully setup)
     //
     return f_force_restart ? 2 : 0;
 }
@@ -368,16 +353,6 @@ void server::fluid_ready()
 {
     f_tick_timer->set_enable(true);
 }
-
-
-void server::msg_reload_config(ed::message & message)
-{
-    snapdev::NOT_USED(message);
-
-    f_force_restart = true;
-    stop(false);
-}
-
 
 
 

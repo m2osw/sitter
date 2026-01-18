@@ -4,6 +4,8 @@ introducer=name
 project=sitter
 
 [public]
+cmd_rusage=RUSAGE
+
 administrator_email=administrator_email
 cache_path=cache_path
 data_path=data_path

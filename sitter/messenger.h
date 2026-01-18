@@ -51,7 +51,7 @@ public:
     virtual                     ~messenger() override {}
     messenger &                 operator = (messenger const & rhs) = delete;
 
-    void                        finish_initialization(ed::dispatcher::pointer_t dispatcher);
+    void                        finish_initialization();
     void                        fluid_settings_changed(
                                       fluid_settings::fluid_settings_status_t status
                                     , std::string const & name
@@ -65,8 +65,8 @@ private:
     void                msg_unblock_ip(ed::message & message);
 
     // this is owned by a server object so no need for a smart pointer
+    //
     server *                    f_server = nullptr;
-    ed::dispatcher::pointer_t   f_dispatcher = ed::dispatcher::pointer_t();
 };
 
 
