@@ -374,12 +374,13 @@ std::int64_t server::get_statistics_frequency()
 {
     if(f_statistics_frequency <= 0)
     {
-        std::string const statistics_frequency_str(f_opts.get_string("statistics-frequency"));
+        std::string const statistics_frequency_str(f_opts.get_string("statistics_frequency"));
         std::int64_t statistics_frequency(DEFAULT_STATISTICS_FREQUENCY);
         double duration(0.0);
         if(advgetopt::validator_duration::convert_string(
                   statistics_frequency_str
                 , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                , 1.0
                 , duration))
         {
             statistics_frequency = static_cast<std::int64_t>(ceil(duration));
@@ -423,11 +424,12 @@ std::int64_t server::get_statistics_period()
     if(f_statistics_period <= 0)
     {
         std::int64_t statistics_period(DEFAULT_STATISTICS_PERIOD);
-        std::string const statistics_period_str(f_opts.get_string("statistics-period"));
+        std::string const statistics_period_str(f_opts.get_string("statistics_period"));
         double duration(0.0);
         if(advgetopt::validator_duration::convert_string(
                   statistics_period_str
                 , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                , 1.0
                 , duration))
         {
             statistics_period = static_cast<std::int64_t>(ceil(duration));
@@ -480,7 +482,7 @@ std::int64_t server::get_statistics_ttl()
 {
     if(f_statistics_ttl < 0)
     {
-        std::string const statistics_ttl_str(f_opts.get_string("statistics-ttl"));
+        std::string const statistics_ttl_str(f_opts.get_string("statistics_ttl"));
         if(statistics_ttl_str == "off")
         {
             f_statistics_ttl = 0;
@@ -496,6 +498,7 @@ std::int64_t server::get_statistics_ttl()
             if(advgetopt::validator_duration::convert_string(
                       statistics_ttl_str
                     , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                    , 1.0
                     , duration))
             {
                 statistics_ttl = static_cast<std::int64_t>(ceil(duration));
@@ -541,11 +544,12 @@ std::int64_t server::get_error_report_settle_time()
     if(f_error_report_settle_time < 0)
     {
         std::int64_t error_report_settle_time(DEFAULT_ERROR_REPORT_SETTLE_TIME);
-        std::string const error_report_settle_time_str(f_opts.get_string("error-report-settle-time"));
+        std::string const error_report_settle_time_str(f_opts.get_string("error_report_settle_time"));
         double duration(0.0);
         if(advgetopt::validator_duration::convert_string(
                   error_report_settle_time_str
                 , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                , 1.0
                 , duration))
         {
             error_report_settle_time = static_cast<std::int64_t>(ceil(duration));
@@ -591,7 +595,7 @@ std::int64_t server::get_error_report_low_priority()
         f_error_report_low_priority = DEFAULT_ERROR_REPORT_LOW_PRIORITY;
         f_error_report_low_span = DEFAULT_ERROR_REPORT_LOW_SPAN;
 
-        std::string const low_priority_str(f_opts.get_string("error-report-low-priority"));
+        std::string const low_priority_str(f_opts.get_string("error_report_low_priority"));
         if(!low_priority_str.empty())
         {
             advgetopt::string_list_t prio_span;
@@ -653,6 +657,7 @@ std::int64_t server::get_error_report_low_priority()
                 if(advgetopt::validator_duration::convert_string(
                               prio_span[1]
                             , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                            , 1.0
                             , duration))
                 {
                     f_error_report_low_span = static_cast<std::int64_t>(ceil(duration));
@@ -699,7 +704,7 @@ std::int64_t server::get_error_report_medium_priority()
     {
         f_error_report_medium_priority = DEFAULT_ERROR_REPORT_MEDIUM_PRIORITY;
         f_error_report_medium_span = DEFAULT_ERROR_REPORT_MEDIUM_SPAN;
-        std::string const medium_priority_str(f_opts.get_string("error-report-medium-priority"));
+        std::string const medium_priority_str(f_opts.get_string("error_report_medium_priority"));
         if(!medium_priority_str.empty())
         {
             advgetopt::string_list_t prio_span;
@@ -761,6 +766,7 @@ std::int64_t server::get_error_report_medium_priority()
                 if(advgetopt::validator_duration::convert_string(
                               prio_span[1]
                             , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                            , 1.0
                             , duration))
                 {
                     f_error_report_medium_span = static_cast<std::int64_t>(ceil(duration));
@@ -807,7 +813,7 @@ int64_t server::get_error_report_critical_priority()
     {
         f_error_report_critical_priority = DEFAULT_ERROR_REPORT_CRITICAL_PRIORITY;
         f_error_report_critical_span = DEFAULT_ERROR_REPORT_CRITICAL_SPAN;
-        std::string const critical_priority_str(f_opts.get_string("error-report-critical-priority"));
+        std::string const critical_priority_str(f_opts.get_string("error_report_critical_priority"));
         if(!critical_priority_str.empty())
         {
             advgetopt::string_list_t prio_span;
@@ -867,6 +873,7 @@ int64_t server::get_error_report_critical_priority()
                 if(advgetopt::validator_duration::convert_string(
                               prio_span[1]
                             , advgetopt::validator_duration::VALIDATOR_DURATION_DEFAULT_FLAGS
+                            , 1.0
                             , duration))
                 {
                     f_error_report_critical_span = static_cast<std::int64_t>(ceil(duration));
@@ -1133,7 +1140,7 @@ std::string server::get_cache_path(std::string const & filename)
     {
         // get the path specified by the administrator or default
         //
-        f_cache_path = f_opts.get_string("cache-path");
+        f_cache_path = f_opts.get_string("cache_path");
 
         // the path to "/var/cache/sitter" should always exist
         //
