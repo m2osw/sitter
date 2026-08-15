@@ -1,3 +1,13 @@
+sitter (0.3.3.0~noble) noble; urgency=high
+
+  * Updated doxygen settings.
+  * Properly connect the fluid settings.
+  * Removed the dispatcher from here, it's in communicator now.
+  * Removed the libboost dependency, no need anymore.
+  * Updated the duration validator definitions.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sat, 15 Aug 2026 15:06:15 -0700
+
 sitter (0.3.2.0~noble) noble; urgency=high
 
   * Make sure variables are initialized.
